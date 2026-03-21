@@ -223,7 +223,7 @@ async function doUnlock(isAutoLogin = false) {
     const DB = window.OPS_DB || {};
     const MAKEUP_DB = DB.MAKEUP || []; const FABRIC_DB = DB.FABRIC || []; const BOTTOM_DB = DB.BOTTOM || [];
     const LIGHT_DB = DB.LIGHT || []; const ACC_DB = DB.ACC || []; const ACC_GROUPS = DB.ACC_GROUPS || [];
-    const EMOTION_DB = DB.EMOTION || []; const POSE_DB = DB.POSE || []; const SCENE_DB = DB.SCENE || [];
+    const EMOTION_DB = DB.EMOTION || []; const POSE_DB = DB.POSE || []; const ANGLE_DB = DB.ANGLE || []; const SCENE_DB = DB.SCENE || [];
     const SCENE_CATS_DB = DB.SCENE_CATS || [];
     const BRA_DB = DB.BRA || []; const BASE_CHARS = DB.CHARS || {};
     const DIRECTION_DB = DB.DIRECTION || { ref_prefix:[], ref_core:[], ref_suffix:[], ratio:[], person_size:[], expression:[], comp_rule:[], comp_bg:[] };
@@ -276,6 +276,8 @@ async function doUnlock(isAutoLogin = false) {
       const [customPos, setCustomPos] = React.useState("");
       const [customNeg, setCustomNeg] = React.useState("");
       const [isOpen, setIsOpen] = React.useState(false);
+      const [copiedPos, setCopiedPos] = React.useState(false);
+      const [copiedNeg, setCopiedNeg] = React.useState(false);
 
       const acColor = isCloudMode ? C.cloud : isRunningHubMode ? C.rhGold : C.green;
       const btnLabel = isComfyGenerating ? "⏳ 算圖中..." : isCloudMode ? "☁️ 雲端 Imagen 送出" : isRunningHubMode ? "⚡ 送至 RunningHub" : "🚀 送至 ComfyUI";
@@ -286,6 +288,20 @@ async function doUnlock(isAutoLogin = false) {
         if (isCloudMode) onSendCloud(customPos);
         else if (isRunningHubMode) onSendRH(customPos);
         else onSendComfy(customPos, negText);
+      };
+
+      const handleCopyPos = () => {
+        if (!customPos.trim()) return;
+        navigator.clipboard.writeText(customPos);
+        setCopiedPos(true);
+        setTimeout(() => setCopiedPos(false), 2000);
+      };
+
+      const handleCopyNeg = () => {
+        if (!customNeg.trim()) return;
+        navigator.clipboard.writeText(customNeg);
+        setCopiedNeg(true);
+        setTimeout(() => setCopiedNeg(false), 2000);
       };
 
       return (
@@ -300,7 +316,19 @@ async function doUnlock(isAutoLogin = false) {
           {isOpen && (
             <div style={{padding:"16px", background:"var(--card)"}}>
               <div style={{marginBottom:10}}>
-                <div style={{fontSize:11, color:acColor, letterSpacing:1, marginBottom:6}}>＋ POSITIVE</div>
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
+                  <span style={{fontSize:11, color:acColor, letterSpacing:1}}>＋ POSITIVE</span>
+                  <button
+                    onClick={handleCopyPos}
+                    style={{
+                      padding:"2px 10px", fontSize:11, borderRadius:6, cursor:"pointer", fontWeight:700,
+                      background: copiedPos ? `${acColor}33` : "transparent",
+                      border: `1px solid ${copiedPos ? acColor : acColor + "66"}`,
+                      color: copiedPos ? acColor : acColor + "AA",
+                      transition:"all 0.15s"
+                    }}
+                  >{copiedPos ? "✓ 已複製" : "📋 複製"}</button>
+                </div>
                 <textarea
                   value={customPos}
                   onChange={e => setCustomPos(e.target.value)}
@@ -311,7 +339,19 @@ async function doUnlock(isAutoLogin = false) {
               </div>
               {!isCloudMode && (
                 <div style={{marginBottom:12}}>
-                  <div style={{fontSize:11, color:C.red, letterSpacing:1, marginBottom:6}}>－ NEGATIVE（選填）</div>
+                  <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
+                    <span style={{fontSize:11, color:C.red, letterSpacing:1}}>－ NEGATIVE（選填）</span>
+                    <button
+                      onClick={handleCopyNeg}
+                      style={{
+                        padding:"2px 10px", fontSize:11, borderRadius:6, cursor:"pointer", fontWeight:700,
+                        background: copiedNeg ? `${C.red}33` : "transparent",
+                        border: `1px solid ${copiedNeg ? C.red : C.red + "66"}`,
+                        color: copiedNeg ? C.red : C.red + "AA",
+                        transition:"all 0.15s"
+                      }}
+                    >{copiedNeg ? "✓ 已複製" : "📋 複製"}</button>
+                  </div>
                   <textarea
                     value={customNeg}
                     onChange={e => setCustomNeg(e.target.value)}
@@ -425,6 +465,8 @@ async function doUnlock(isAutoLogin = false) {
       const [comfyImages, setComfyImages] = useState([]); const comfyGalleryRef = useRef(null); 
 
       const [customDB, setCustomDB] = useState({ fabric:[], bottom:[], pose:[], scene:[], makeup:[], acc:[], light:[] });
+      const [selAngle, setSelAngle] = useState(null);
+      const [angleCat, setAngleCat] = useState("all");
       const [customExpr, setCustomExpr] = useState([]); const [customComp, setCustomComp] = useState([]);
       const [selF,setSelF]=useState(null); const [selB,setSelB]=useState(null); const [selL,setSelL]=useState(null); const [selM,setSelM]=useState(null); 
       const [selP,setSelP]=useState(null); const [selS,setSelS]=useState(null); const [selExpr,setSelExpr]=useState(null); 
@@ -457,6 +499,14 @@ async function doUnlock(isAutoLogin = false) {
 
       const allF = [...FABRIC_DB, ...customDB.fabric]; const allB = [...BOTTOM_DB, ...customDB.bottom];
       const allP = [...POSE_DB, ...customDB.pose]; const allM = [...MAKEUP_DB, ...customDB.makeup];
+      const ANGLE_CATS = [
+        { key:"all", label:"全部視角" },
+        { key:"height", label:"🎥 仰俯高低" },
+        { key:"dir",    label:"🧭 人物朝向" },
+        { key:"lens",   label:"🔭 鏡頭效果" },
+        { key:"pov",    label:"👁 沉浸視角" }
+      ];
+      const filteredAngleList = angleCat === "all" ? ANGLE_DB : ANGLE_DB.filter(a => a.cat === angleCat);
       const allL = [...LIGHT_DB, ...customDB.light]; const allA = [...ACC_DB, ...customDB.acc];
       const allEmotion = [...EMOTION_DB]; 
       const sceneList = [...SCENE_DB, ...customDB.scene];
@@ -472,7 +522,7 @@ async function doUnlock(isAutoLogin = false) {
       };
 
       const clearAll = () => {
-        setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null);
+        setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null); setSelAngle(null); setAngleCat("all");
         setSelA([]); setSelBra([]); setSelEmotion([]); setSelOutfitStyle(null); setSelHairStyle(null); setSelHairColor(null);
         setLightContrast(50); clearGeminiSection(); setResult(null); setPrompts({pos:{zh:"",en:""},neg:{zh:"",en:""}});
       };
@@ -760,20 +810,28 @@ async function doUnlock(isAutoLogin = false) {
 
         chunksZH.push(coreDNA_ZH); chunksEN.push(coreDNA_EN);
         
+        // ── [v9.3 排序修正] 髮型 & 髮色緊接 coreDNA 之後，在妝容與服裝之前注入 ──
+        // 原因：髮型/髮色在 token 序列中越靠前，AI 的注意力權重越高，
+        // 且能在「動態敘事長段落」淹沒之前先被確立為視覺基礎
+        if (selHairStyle) { 
+            const hs = HAIR_DB.find(x=>x.id===selHairStyle); 
+            // [v9.3] 加入 hairstyle: 錨點前綴，防止髮型描述被 AI 誤解為服裝或場景元素
+            // 提權 1.2 → 1.25，確保髮型在高密度動態敘事詞前仍保有影響力
+            chunksZH.push(isCloudMode ? `[髮型設計: ${hs.zh}]` : `(髮型: ${hs.zh}:1.25)`); 
+            chunksEN.push(isCloudMode ? `[hairstyle: ${hs.en}]` : `(hairstyle: ${hs.en}:1.25)`); 
+        }
+        if (selHairColor) { 
+            const hc = HAIR_DB.find(x=>x.id===selHairColor); 
+            // [v9.3] 加入 hair color: 錨點前綴，防止顏色語義飄移至服裝（最致命問題）
+            // 提權 1.2 → 1.3，髮色是視覺辨識度的核心，必須壓過服裝色彩競爭
+            chunksZH.push(isCloudMode ? `[髮色渲染: ${hc.zh}]` : `(髮色: ${hc.zh}:1.3)`); 
+            chunksEN.push(isCloudMode ? `[hair color: ${hc.en}]` : `(${hc.en}:1.3)`); 
+        }
+
         // V10.0 雙引擎架構：雲端保留 [標籤]，本地端轉化為 (權重:1.2) 防止被服裝細節吃掉
         if (m && !refCheerMakeup) { 
             chunksZH.push(isCloudMode ? `[妝容: ${m.zh || m.label}]` : `(${m.zh || m.label}:1.15)`); 
             chunksEN.push(isCloudMode ? `[makeup: ${m.en}]` : `(${m.en}:1.15)`); 
-        }
-        if (selHairStyle) { 
-            const hs = HAIR_DB.find(x=>x.id===selHairStyle); 
-            chunksZH.push(isCloudMode ? `[髮型設計: ${hs.zh}]` : `(${hs.zh}:1.2)`); 
-            chunksEN.push(isCloudMode ? `[hair design: ${hs.en}]` : `(${hs.en}:1.2)`); 
-        }
-        if (selHairColor) { 
-            const hc = HAIR_DB.find(x=>x.id===selHairColor); 
-            chunksZH.push(isCloudMode ? `[髮色渲染: ${hc.zh}]` : `(${hc.zh}:1.2)`); 
-            chunksEN.push(isCloudMode ? `[hair color: ${hc.en}]` : `(${hc.en}:1.2)`); 
         }
         
         if (f) { chunksZH.push(`穿著 ${f.zh || f.label}`); chunksEN.push(`wearing ${f.en}`); }
@@ -797,7 +855,31 @@ async function doUnlock(isAutoLogin = false) {
           }
         }
 
-        if (p) { chunksZH.push(p.zh || p.label); chunksEN.push(p.en); }
+        if (p) {
+          // 姿勢權重注入：根據 w 值決定是否加包裹，高動態姿勢加強權重防止被服裝細節淹沒
+          const pW = p.w || 1.15;
+          if (isCloudMode) {
+            chunksZH.push(`[姿勢: ${p.zh || p.label}]`);
+            chunksEN.push(`[pose: ${p.en}]`);
+          } else {
+            chunksZH.push(pW >= 1.25 ? `(${p.zh || p.label}:${pW})` : p.zh || p.label);
+            chunksEN.push(pW >= 1.25 ? `(${p.en}:${pW})` : p.en);
+          }
+        }
+        // 攝影視角 ANGLE：對構圖影響力極強，一律注入高權重
+        if (selAngle) {
+          const ang = ANGLE_DB.find(x => x.id === selAngle);
+          if (ang) {
+            const aW = ang.w || 1.35;
+            if (isCloudMode) {
+              chunksZH.push(`[攝影視角: ${ang.zh}]`);
+              chunksEN.push(`[camera angle: ${ang.en}]`);
+            } else {
+              chunksZH.push(`(${ang.zh}:${aW})`);
+              chunksEN.push(`(${ang.en}:${aW})`);
+            }
+          }
+        }
         if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){ chunksZH.push(`場景在 ${so.zh}`); chunksEN.push(`scene in ${so.en}`); } }
         if (l) { chunksZH.push(l.zh || l.label); chunksEN.push(l.en); }
         
@@ -998,7 +1080,34 @@ async function doUnlock(isAutoLogin = false) {
               <div style={{display: "flex", flexDirection: "column"}}>
                 <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelF(null)}><DropSelect items={allF} value={selF} onChange={setSelF} accent={C.orange} /></Sec>
                 <Sec title="② 下裝 BOTTOM" aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelB(null)}><DropSelect items={allB} value={selB} onChange={setSelB} accent={C.orange} /></Sec>
-                <Sec title="③ 姿勢角度 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>setSelP(null)}><DropSelect items={allP} value={selP} onChange={setSelP} accent={C.cyan} /></Sec>
+                <Sec title="③ 姿勢 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>setSelP(null)}><DropSelect items={allP} value={selP} onChange={setSelP} accent={C.cyan} /></Sec>
+                <Sec title="③+ 攝影視角 ANGLE" accentColor={"#22d3ee"} onClear={()=>{setSelAngle(null);setAngleCat("all");}}>
+                  {/* 分類標籤列 */}
+                  <div style={{marginBottom:7}}>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
+                      {ANGLE_CATS.map(c=>{
+                        const cnt = c.key==="all" ? ANGLE_DB.length : ANGLE_DB.filter(a=>a.cat===c.key).length;
+                        const isActive = angleCat===c.key;
+                        return <button key={c.key} onClick={()=>{setAngleCat(c.key);setSelAngle(null);}} style={{
+                          padding:"2px 7px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700,
+                          background:isActive?"#22d3ee33":"transparent",
+                          border:`1px solid ${isActive?"#22d3ee":cnt>0?"#22d3ee55":"var(--border)"}`,
+                          color:isActive?"#22d3ee":cnt>0?"#22d3eeAA":"var(--subtext)",transition:"all 0.15s"
+                        }}>{c.label}{c.key!=="all"&&<span style={{marginLeft:2,fontSize:8,opacity:0.55}}>{cnt}</span>}</button>;
+                      })}
+                    </div>
+                    {/* 視角影響力說明 */}
+                    {selAngle && (()=>{
+                      const ang = ANGLE_DB.find(x=>x.id===selAngle);
+                      if(!ang) return null;
+                      const wLabel = ang.w>=1.4?"🔴 極強影響":ang.w>=1.3?"🟠 強影響":ang.w>=1.2?"🟡 中影響":"🟢 輕影響";
+                      return <div style={{fontSize:10,padding:"4px 8px",background:"#22d3ee15",border:"1px solid #22d3ee33",borderRadius:5,color:"#22d3ee",marginBottom:4}}>
+                        ⚡ 視角權重 <b>{ang.w}</b> — {wLabel} | 對 AI 生圖構圖的影響力
+                      </div>;
+                    })()}
+                  </div>
+                  <DropSelect items={filteredAngleList} value={selAngle} onChange={setSelAngle} accent={"#22d3ee"} />
+                </Sec>
                 <Sec title="④ 妝容核心 MAKEUP" aiCategory="makeup" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.rose} onClear={()=>setSelM(null)}><DropSelect items={allM} value={selM} onChange={setSelM} accent={C.rose} /></Sec>
                 <Sec title="⑤ 表情核心 EXPRESSION" aiCategory="expr" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.pink} onClear={()=>{setSelExpr(null);setSelEmotion([]);}}>
                   <DropSelect items={allExpr} value={selExpr} onChange={setSelExpr} accent={C.pink} />
