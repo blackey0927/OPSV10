@@ -223,7 +223,7 @@ async function doUnlock(isAutoLogin = false) {
     const DB = window.OPS_DB || {};
     const MAKEUP_DB = DB.MAKEUP || []; const FABRIC_DB = DB.FABRIC || []; const BOTTOM_DB = DB.BOTTOM || [];
     const LIGHT_DB = DB.LIGHT || []; const ACC_DB = DB.ACC || []; const ACC_GROUPS = DB.ACC_GROUPS || [];
-    const EMOTION_DB = DB.EMOTION || []; const POSE_DB = DB.POSE || []; const ANGLE_DB = DB.ANGLE || []; const SCENE_DB = DB.SCENE || [];
+    const EMOTION_DB = DB.EMOTION || []; const POSE_DB = DB.POSE || []; const ANGLE_DB = DB.ANGLE || []; const SHOE_DB = DB.SHOES || []; const SCENE_DB = DB.SCENE || [];
     const SCENE_CATS_DB = DB.SCENE_CATS || [];
     const BRA_DB = DB.BRA || []; const BASE_CHARS = DB.CHARS || {};
     const DIRECTION_DB = DB.DIRECTION || { ref_prefix:[], ref_core:[], ref_suffix:[], ratio:[], person_size:[], expression:[], comp_rule:[], comp_bg:[] };
@@ -467,6 +467,8 @@ async function doUnlock(isAutoLogin = false) {
       const [customDB, setCustomDB] = useState({ fabric:[], bottom:[], pose:[], scene:[], makeup:[], acc:[], light:[] });
       const [selAngle, setSelAngle] = useState(null);
       const [angleCat, setAngleCat] = useState("all");
+      const [selShoe, setSelShoe] = useState(null);
+      const [shoeCat, setShoeCat] = useState("all");
       const [customExpr, setCustomExpr] = useState([]); const [customComp, setCustomComp] = useState([]);
       const [selF,setSelF]=useState(null); const [selB,setSelB]=useState(null); const [selL,setSelL]=useState(null); const [selM,setSelM]=useState(null); 
       const [selP,setSelP]=useState(null); const [selS,setSelS]=useState(null); const [selExpr,setSelExpr]=useState(null); 
@@ -507,6 +509,21 @@ async function doUnlock(isAutoLogin = false) {
         { key:"pov",    label:"👁 沉浸視角" }
       ];
       const filteredAngleList = angleCat === "all" ? ANGLE_DB : ANGLE_DB.filter(a => a.cat === angleCat);
+      const SHOE_CATS = [
+        { key:"all",        label:"全部鞋款" },
+        { key:"trend2026",  label:"🔥 2026潮流" },
+        { key:"fashion",    label:"👗 時尚高定" },
+        { key:"gala",       label:"💎 高級宴會" },
+        { key:"daily",      label:"☀️ 日常百搭" },
+        { key:"sport",      label:"🏃 運動機能" },
+        { key:"korean",     label:"🇰🇷 韓系風格" },
+        { key:"idol",       label:"⭐ 偶像藝人" },
+        { key:"dark",       label:"🖤 頹廢暗黑" },
+        { key:"anime",      label:"🎌 動漫二次元" },
+        { key:"guofeng",    label:"🏮 國風漢服" },
+        { key:"cosplay",    label:"🎭 Cosplay" }
+      ];
+      const filteredShoeList = shoeCat === "all" ? SHOE_DB : SHOE_DB.filter(x => x.cat === shoeCat);
       const allL = [...LIGHT_DB, ...customDB.light]; const allA = [...ACC_DB, ...customDB.acc];
       const allEmotion = [...EMOTION_DB]; 
       const sceneList = [...SCENE_DB, ...customDB.scene];
@@ -524,6 +541,7 @@ async function doUnlock(isAutoLogin = false) {
       const clearAll = () => {
         setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null); setSelAngle(null); setAngleCat("all");
         setSelA([]); setSelBra([]); setSelEmotion([]); setSelOutfitStyle(null); setSelHairStyle(null); setSelHairColor(null);
+        setSelShoe(null); setShoeCat("all");
         setLightContrast(50); clearGeminiSection(); setResult(null); setPrompts({pos:{zh:"",en:""},neg:{zh:"",en:""}});
       };
 
@@ -880,6 +898,19 @@ async function doUnlock(isAutoLogin = false) {
             }
           }
         }
+        // 鞋款 SHOES
+        if (selShoe) {
+          const shoe = SHOE_DB.find(x => x.id === selShoe);
+          if (shoe) {
+            if (isCloudMode) {
+              chunksZH.push(`[鞋款: ${shoe.zh}]`);
+              chunksEN.push(`[footwear: ${shoe.en}]`);
+            } else {
+              chunksZH.push(`(wearing ${shoe.zh}:1.25)`);
+              chunksEN.push(`(wearing ${shoe.en}:1.25)`);
+            }
+          }
+        }
         if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){ chunksZH.push(`場景在 ${so.zh}`); chunksEN.push(`scene in ${so.en}`); } }
         if (l) { chunksZH.push(l.zh || l.label); chunksEN.push(l.en); }
         
@@ -1107,6 +1138,31 @@ async function doUnlock(isAutoLogin = false) {
                     })()}
                   </div>
                   <DropSelect items={filteredAngleList} value={selAngle} onChange={setSelAngle} accent={"#22d3ee"} />
+                </Sec>
+                <Sec title="③++ 鞋款核心 SHOES" accentColor={"#f59e0b"} onClear={()=>{setSelShoe(null);setShoeCat("all");}}>
+                  {/* 分類標籤列 */}
+                  <div style={{marginBottom:7}}>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
+                      {SHOE_CATS.map(c=>{
+                        const cnt = c.key==="all" ? SHOE_DB.length : SHOE_DB.filter(x=>x.cat===c.key).length;
+                        const isActive = shoeCat===c.key;
+                        return <button key={c.key} onClick={()=>{setShoeCat(c.key);setSelShoe(null);}} style={{
+                          padding:"2px 7px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700,
+                          background:isActive?"#f59e0b33":"transparent",
+                          border:`1px solid ${isActive?"#f59e0b":cnt>0?"#f59e0b55":"var(--border)"}`,
+                          color:isActive?"#f59e0b":cnt>0?"#f59e0bAA":"var(--subtext)",transition:"all 0.15s"
+                        }}>{c.label}{c.key!=="all"&&<span style={{marginLeft:2,fontSize:8,opacity:0.55}}>{cnt}</span>}</button>;
+                      })}
+                    </div>
+                    {selShoe && (()=>{
+                      const shoe = SHOE_DB.find(x=>x.id===selShoe);
+                      if(!shoe) return null;
+                      return <div style={{fontSize:10,padding:"4px 8px",background:"#f59e0b15",border:"1px solid #f59e0b33",borderRadius:5,color:"#f59e0b",marginBottom:4}}>
+                        👟 已選：<b>{shoe.label}</b>
+                      </div>;
+                    })()}
+                  </div>
+                  <DropSelect items={filteredShoeList} value={selShoe} onChange={setSelShoe} accent={"#f59e0b"} />
                 </Sec>
                 <Sec title="④ 妝容核心 MAKEUP" aiCategory="makeup" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.rose} onClear={()=>setSelM(null)}><DropSelect items={allM} value={selM} onChange={setSelM} accent={C.rose} /></Sec>
                 <Sec title="⑤ 表情核心 EXPRESSION" aiCategory="expr" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.pink} onClear={()=>{setSelExpr(null);setSelEmotion([]);}}>
