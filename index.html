@@ -30,8 +30,8 @@
 
   // ── Airtable 追蹤設定（填入你的 Token 和 Base ID）──
   window._OPS_AT_CONFIG = {
-    token:  "patUaUaacB5nAHDdE.02e85b9915614bea053fca4f904006fb354a0996ab76873e61911eac0cf583a5",
-    baseId: "appPFlEVgtftsBD1V"
+    token:  "YOUR_AIRTABLE_PAT",
+    baseId: "YOUR_BASE_ID"
   };
   </script>
 
@@ -189,7 +189,7 @@ async function doUnlock(isAutoLogin = false) {
         const dev  = navigator.userAgent.split(' ').slice(-3).join(' ');
         await fetch(`${base}/unlock_logs`, {
           method:'POST', headers: hdr,
-          body: JSON.stringify({ fields:{ email, unlocked_at: now, device: dev, system: 'OPS_V10' } })
+          body: JSON.stringify({ fields:{ email, unlocked_at: now, device: dev, system: 'OPS' } })
         });
         const search = await fetch(`${base}/authorized_users?filterByFormula=${encodeURIComponent(`{email}="${email}"`)}`, { headers: hdr });
         const data = await search.json();
@@ -462,7 +462,7 @@ async function doUnlock(isAutoLogin = false) {
       const [cloudApiKey, setCloudApiKey] = useState(() => localStorage.getItem("ops_cloud_api_key") || "");
 
       const [isComfyGenerating, setIsComfyGenerating] = useState(false); const [comfyProgress, setComfyProgress] = useState(0);
-      const [comfyImages, setComfyImages] = useState([]); const comfyGalleryRef = useRef(null); 
+      const [comfyImages, setComfyImages] = useState([]); const comfyGalleryRef = useRef(null); const cancelRef = useRef(false); const activeWsRef = useRef(null); const activePromptIdRef = useRef(null); 
 
       const [customDB, setCustomDB] = useState({ fabric:[], bottom:[], pose:[], scene:[], makeup:[], acc:[], light:[] });
       const [selAngle, setSelAngle] = useState(null);
@@ -584,9 +584,26 @@ async function doUnlock(isAutoLogin = false) {
         } catch (e) { alert("⚠️ 算圖完成，但抓取圖片錯誤。"); } finally { setIsComfyGenerating(false); }
       };
 
+      const handleCancel = () => {
+        cancelRef.current = true;
+        // Close WebSocket
+        if (activeWsRef.current) { try { activeWsRef.current.close(); } catch(e){} activeWsRef.current = null; }
+        // ComfyUI: interrupt current execution + delete from queue
+        if (!isRunningHubMode && !isCloudMode && comfyUrl) {
+          fetch(`${comfyUrl}/interrupt`, { method: 'POST' }).catch(()=>{});
+          if (activePromptIdRef.current) {
+            fetch(`${comfyUrl}/queue`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ delete: [activePromptIdRef.current] }) }).catch(()=>{});
+          }
+        }
+        setIsComfyGenerating(false);
+        setComfyProgress(0);
+        setRhQueueStatus('');
+        activePromptIdRef.current = null;
+      };
+
       const handleComfySend = async (posText, negText) => {
         if (!comfyUrl) return alert("請先填寫 ComfyUI API 網址！");
-        setIsComfyGenerating(true); setComfyProgress(0); setComfyImages([]);
+        cancelRef.current = false; setIsComfyGenerating(true); setComfyProgress(0); setComfyImages([]);
         let ws;
         try {
             // 讀取自訂的 JSON 工作流
@@ -613,11 +630,11 @@ async function doUnlock(isAutoLogin = false) {
               }
             });
             const clientId = Math.random().toString(36).substring(2, 15); 
-            try { ws = new WebSocket(comfyUrl.replace("http://", "ws://").replace("https://", "wss://") + "/ws?clientId=" + clientId); } catch(e) {}
+            try { ws = new WebSocket(comfyUrl.replace("http://", "ws://").replace("https://", "wss://") + "/ws?clientId=" + clientId); activeWsRef.current = ws; } catch(e) {}
             
             const response = await fetch(`${comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow, client_id: clientId }) });
             if (!response.ok) throw new Error(`伺服器回應錯誤`);
-            const json = await response.json(); const promptId = json.prompt_id; localStorage.setItem("ops_comfy_url", comfyUrl);
+            const json = await response.json(); const promptId = json.prompt_id; activePromptIdRef.current = promptId; localStorage.setItem("ops_comfy_url", comfyUrl);
             
             if (ws) {
                 ws.onmessage = async (event) => {
@@ -634,7 +651,7 @@ async function doUnlock(isAutoLogin = false) {
       const handleRunningHubSend = async (posText) => {
         if (!rhApiKey) return alert("請先填寫 RunningHub API Key！");
         if (!rhWorkflowId) return alert("請先填寫 RunningHub 工作流 ID！");
-        setIsComfyGenerating(true); setComfyProgress(5); setComfyImages([]); setRhQueueStatus(""); setCopiedIdx(null);
+        cancelRef.current = false; setIsComfyGenerating(true); setComfyProgress(5); setComfyImages([]); setRhQueueStatus(""); setCopiedIdx(null);
         const RH_ERRORS = {
           "TASK_QUEUE_MAXED": "⏳ 佇列已滿\n請等當前任務完成後再試，或升級 RunningHub 方案。",
           "INVALID_API_KEY": "🔑 API Key 無效，請重新複製。",
@@ -1586,11 +1603,14 @@ async function doUnlock(isAutoLogin = false) {
                 </div>
                 {isComfyGenerating && (
                   <div style={{marginBottom:10}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--subtext)",marginBottom:8,fontWeight:"bold"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--subtext)",marginBottom:8,fontWeight:"bold"}}>
                       <span style={{color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}}>
                         {isCloudMode?"⚡ 正在呼叫 Google API...":isRunningHubMode?(rhQueueStatus||"⚡ 正在呼叫 RunningHub Z-image，每4秒輪詢..."):"⚡ 正在與 RTX 5090 伺服器通訊..."}
                       </span>
-                      <span>{comfyProgress}%</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span>{comfyProgress}%</span>
+                        <button onClick={handleCancel} style={{padding:"3px 10px",fontSize:11,fontWeight:"bold",background:"rgba(220,50,50,0.15)",border:"1px solid #f55",color:"#f55",borderRadius:6,cursor:"pointer",lineHeight:1.4}}>✕ 取消</button>
+                      </div>
                     </div>
                     <div style={{width:"100%",height:8,background:`${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}1A`,borderRadius:4,overflow:"hidden",border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}4D`}}>
                       <div style={{width:`${comfyProgress}%`,height:"100%",background:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green,transition:"width 0.3s ease-out"}}></div>
