@@ -30,8 +30,8 @@
 
   // ── Airtable 追蹤設定（填入你的 Token 和 Base ID）──
   window._OPS_AT_CONFIG = {
-    token:  "YOUR_AIRTABLE_PAT",
-    baseId: "YOUR_BASE_ID"
+    token:  "patUaUaacB5nAHDdE.02e85b9915614bea053fca4f904006fb354a0996ab76873e61911eac0cf583a5",
+    baseId: "appPFlEVgtftsBD1V"
   };
   </script>
 
@@ -189,7 +189,7 @@ async function doUnlock(isAutoLogin = false) {
         const dev  = navigator.userAgent.split(' ').slice(-3).join(' ');
         await fetch(`${base}/unlock_logs`, {
           method:'POST', headers: hdr,
-          body: JSON.stringify({ fields:{ email, unlocked_at: now, device: dev, system: 'OPS' } })
+          body: JSON.stringify({ fields:{ email, unlocked_at: now, device: dev, system: 'OPS_V10' } })
         });
         const search = await fetch(`${base}/authorized_users?filterByFormula=${encodeURIComponent(`{email}="${email}"`)}`, { headers: hdr });
         const data = await search.json();
