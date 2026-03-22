@@ -467,6 +467,7 @@ async function doUnlock(isAutoLogin = false) {
       const [customDB, setCustomDB] = useState({ fabric:[], bottom:[], pose:[], scene:[], makeup:[], acc:[], light:[] });
       const [selAngle, setSelAngle] = useState(null);
       const [angleCat, setAngleCat] = useState("all");
+      const [shotFilter, setShotFilter] = useState("all");
       const [selShoe, setSelShoe] = useState(null);
       const [shoeCat, setShoeCat] = useState("all");
       const [customExpr, setCustomExpr] = useState([]); const [customComp, setCustomComp] = useState([]);
@@ -509,6 +510,20 @@ async function doUnlock(isAutoLogin = false) {
         { key:"pov",    label:"👁 沉浸視角" }
       ];
       const filteredAngleList = angleCat === "all" ? ANGLE_DB : ANGLE_DB.filter(a => a.cat === angleCat);
+      const SHOT_CATS = [
+        { key:"all", label:"全部景別", en:"All" },
+        { key:"cu",  label:"👁 特寫",    en:"Close-Up",        desc:"臉/頭部為主" },
+        { key:"mcu", label:"👤 近景",    en:"Medium CU",       desc:"胸部以上" },
+        { key:"ms",  label:"🧍 半身",    en:"Medium Shot",     desc:"腰部以上" },
+        { key:"mls", label:"📐 七分身",  en:"Medium Long",     desc:"膝蓋以上" },
+        { key:"fs",  label:"🧍‍♀️ 全身",  en:"Full Shot",       desc:"完整全身" },
+        { key:"ls",  label:"🌄 帶景全身",en:"Long Shot",       desc:"人物+大環境" },
+      ];
+      const filteredPoseList = (() => {
+        let list = allP;
+        if (shotFilter !== "all") list = list.filter(p => p.shot === shotFilter);
+        return list;
+      })();
       const SHOE_CATS = [
         { key:"all",        label:"全部鞋款" },
         { key:"trend2026",  label:"🔥 2026潮流" },
@@ -542,6 +557,7 @@ async function doUnlock(isAutoLogin = false) {
         setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null); setSelAngle(null); setAngleCat("all");
         setSelA([]); setSelBra([]); setSelEmotion([]); setSelOutfitStyle(null); setSelHairStyle(null); setSelHairColor(null);
         setSelShoe(null); setShoeCat("all");
+        setShotFilter("all");
         setLightContrast(50); clearGeminiSection(); setResult(null); setPrompts({pos:{zh:"",en:""},neg:{zh:"",en:""}});
       };
 
@@ -873,8 +889,9 @@ async function doUnlock(isAutoLogin = false) {
         if (b) { chunksZH.push(`搭配 ${b.zh || b.label}`); chunksEN.push(`with ${b.en}`); }
         
         if (accZH) { 
-            chunksZH.push(isCloudMode ? `[飾品: ${accZH}]` : `(${accZH}:1.1)`); 
-            chunksEN.push(isCloudMode ? `[accessories: ${accEN}]` : `(${accEN}:1.1)`); 
+            // [v10.1修正] 飾品 1.1 → 1.2，防止被服裝色彩競爭稀釋
+            chunksZH.push(isCloudMode ? `[飾品: ${accZH}]` : `(${accZH}:1.2)`); 
+            chunksEN.push(isCloudMode ? `[accessories: ${accEN}]` : `(${accEN}:1.2)`); 
         }
 
         if (braResolved.length > 0) {
@@ -891,14 +908,15 @@ async function doUnlock(isAutoLogin = false) {
         }
 
         if (p) {
-          // 姿勢權重注入：根據 w 值決定是否加包裹，高動態姿勢加強權重防止被服裝細節淹沒
+          // [v10.1修正] 姿勢一律加()括號注入，防止低w姿勢被服裝長描述淹沒失效
+          // 診斷：p3插袋站姿 w=1.15 原本裸文字輸出 → 生圖時姿勢完全失效
           const pW = p.w || 1.15;
           if (isCloudMode) {
             chunksZH.push(`[姿勢: ${p.zh || p.label}]`);
             chunksEN.push(`[pose: ${p.en}]`);
           } else {
-            chunksZH.push(pW >= 1.25 ? `(${p.zh || p.label}:${pW})` : p.zh || p.label);
-            chunksEN.push(pW >= 1.25 ? `(${p.en}:${pW})` : p.en);
+            chunksZH.push(`(${p.zh || p.label}:${pW})`);
+            chunksEN.push(`(${p.en}:${pW})`);
           }
         }
         // 攝影視角 ANGLE：對構圖影響力極強，一律注入高權重
@@ -928,7 +946,16 @@ async function doUnlock(isAutoLogin = false) {
             }
           }
         }
-        if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){ chunksZH.push(`場景在 ${so.zh}`); chunksEN.push(`scene in ${so.en}`); } }
+        if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){
+          // [v10.1修正] 場景加模式標記，雲端用[]，本地用()強化
+          if (isCloudMode) {
+            chunksZH.push(`[場景: ${so.zh}]`);
+            chunksEN.push(`[scene: ${so.en}]`);
+          } else {
+            chunksZH.push(`(場景在 ${so.zh}:1.15)`);
+            chunksEN.push(`(scene in ${so.en}:1.15)`);
+          }
+        } }
         if (l) { chunksZH.push(l.zh || l.label); chunksEN.push(l.en); }
         
         // --- [優化] 光影對比度判斷語義 (確保明暗交界清晰) ---
@@ -1128,7 +1155,34 @@ async function doUnlock(isAutoLogin = false) {
               <div style={{display: "flex", flexDirection: "column"}}>
                 <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelF(null)}><DropSelect items={allF} value={selF} onChange={setSelF} accent={C.orange} /></Sec>
                 <Sec title="② 下裝 BOTTOM" aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelB(null)}><DropSelect items={allB} value={selB} onChange={setSelB} accent={C.orange} /></Sec>
-                <Sec title="③ 姿勢 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>setSelP(null)}><DropSelect items={allP} value={selP} onChange={setSelP} accent={C.cyan} /></Sec>
+                <Sec title="③ 姿勢 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelP(null);setShotFilter("all");}}>
+                  {/* 景別篩選 */}
+                  <div style={{marginBottom:6}}>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}}>
+                      {SHOT_CATS.map(c=>{
+                        const cnt = c.key==="all" ? allP.length : allP.filter(p=>p.shot===c.key).length;
+                        const isActive = shotFilter===c.key;
+                        return <button key={c.key} onClick={()=>{setShotFilter(c.key);setSelP(null);}} style={{
+                          padding:"2px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700,
+                          background:isActive?`${C.cyan}33`:"transparent",
+                          border:`1px solid ${isActive?C.cyan:cnt>0?C.cyan+"55":"var(--border)"}`,
+                          color:isActive?C.cyan:cnt>0?C.cyan+"AA":"var(--subtext)",transition:"all 0.15s"
+                        }}>
+                          {c.label}
+                          {c.key!=="all" && <span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span>}
+                          {c.key!=="all" && c.desc && <span style={{marginLeft:2,fontSize:8,opacity:0.4}}>·{c.desc}</span>}
+                        </button>;
+                      })}
+                    </div>
+                    {shotFilter!=="all" && (()=>{
+                      const cat = SHOT_CATS.find(c=>c.key===shotFilter);
+                      return cat ? <div style={{fontSize:10,padding:"3px 8px",background:`${C.cyan}12`,border:`1px solid ${C.cyan}30`,borderRadius:5,color:C.cyan,display:"inline-block"}}>
+                        📐 {cat.en} — {cat.desc}，篩選中 {filteredPoseList.length} 個姿勢
+                      </div> : null;
+                    })()}
+                  </div>
+                  <DropSelect items={filteredPoseList} value={selP} onChange={setSelP} accent={C.cyan} />
+                </Sec>
                 <Sec title="③+ 攝影視角 ANGLE" accentColor={"#22d3ee"} onClear={()=>{setSelAngle(null);setAngleCat("all");}}>
                   {/* 分類標籤列 */}
                   <div style={{marginBottom:7}}>
