@@ -67,6 +67,44 @@
     .ops-selected-badge { margin-top: 6px; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-family: monospace; line-height: 1.5; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .comfy-image { animation: fadeIn 0.5s ease-out; }
+
+    /* ══════════════════════════════════════════
+       RESPONSIVE MOBILE FIX v10.1
+       ══════════════════════════════════════════ */
+
+    /* Mode switcher: stack vertically on narrow screens */
+    @media (max-width: 520px) {
+      .mode-switcher-row { flex-direction: column !important; }
+      .mode-switcher-row button { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; font-size: 12px !important; padding: 8px 6px !important; }
+    }
+
+    /* Main 2-col grid: single column on mobile */
+    @media (max-width: 640px) {
+      .main-col-grid { grid-template-columns: 1fr !important; }
+      .main-col-grid > div + div { margin-top: 0; }
+    }
+
+    /* Shot filter tabs + category tabs: wrap nicely */
+    @media (max-width: 480px) {
+      .filter-tab-row { gap: 2px !important; }
+      .filter-tab-row button { font-size: 9px !important; padding: 2px 5px !important; }
+    }
+
+    /* Prevent horizontal overflow */
+    #ops-app-root { overflow-x: hidden; }
+    * { box-sizing: border-box; }
+
+    /* Generate button safe area for mobile */
+    @media (max-width: 520px) {
+      .gen-btn-wrap { position: sticky; bottom: 0; z-index: 10; padding: 8px 0; background: var(--bg); }
+      .app-header { padding: 6px 10px !important; }
+      .app-header button { padding: 5px 8px !important; font-size: 11px !important; }
+    }
+
+    /* Sec cards: reduce padding on mobile */
+    @media (max-width: 520px) {
+      .sec-card { padding: 10px 8px !important; }
+    }
   </style>
 </head>
 <body>
@@ -416,7 +454,7 @@ async function doUnlock(isAutoLogin = false) {
     }
     function Sec({title, children, aiCategory, onAIGenerate, onCustomAdd, accentColor, actionNode, onClear, containerStyle}) {
       const [val, setVal] = useState(""); const handleAdd = () => { if(val.trim()) { onCustomAdd(aiCategory, val.trim()); setVal(""); } };
-      return <div style={{background:"var(--card)",border:`1px solid var(--border)`,borderRadius:9,padding:"11px 13px",marginBottom:8, ...containerStyle}}>
+      return <div className="sec-card" style={{background:"var(--card)",border:`1px solid var(--border)`,borderRadius:9,padding:"11px 13px",marginBottom:8, ...containerStyle}}>
         <div style={{display:"flex",justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:8}}>
           <div style={{fontSize:11,color:accentColor,letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>{title}</div>
           <div style={{display:"flex", gap:6, alignItems:"center"}}>
@@ -1047,9 +1085,9 @@ async function doUnlock(isAutoLogin = false) {
               ))}
           </div>
 
-          <div style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
+          <div className="app-header" style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:4,position:"sticky",top:0,zIndex:100}}>
             <div>
-              <div style={{color:C.orange,fontWeight:900,fontSize:15,letterSpacing:4}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
+              <div style={{color:C.orange,fontWeight:900,fontSize:"clamp(11px,3.5vw,15px)",letterSpacing:"clamp(1px,1vw,4px)",lineHeight:1.3}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
               <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.1 終極進化版</div>
             </div>
             <div style={{display:"flex", gap:8}}>
@@ -1058,11 +1096,11 @@ async function doUnlock(isAutoLogin = false) {
             </div>
           </div>
 
-          <div style={{maxWidth:1100,margin:"0 auto",padding:"16px 16px"}}>
-            <div style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>安全模式·雲端破防咒語</span></button>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>新王登基·雲端 ComfyUI 算力</span></button>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>RTX 5090·極限物理張力</span></button>
+          <div style={{maxWidth:1100,margin:"0 auto",padding:"12px 8px"}}>
+            <div className="mode-switcher-row" style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
+              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>安全模式·雲端破防咒語</span></button>
+              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>新王登基·雲端 ComfyUI 算力</span></button>
+              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>RTX 5090·極限物理張力</span></button>
             </div>
 
             {isCloudMode ? (
@@ -1150,7 +1188,7 @@ async function doUnlock(isAutoLogin = false) {
               </div>
             )}
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div className="main-col-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               {/* === 左側欄位 === */}
               <div style={{display: "flex", flexDirection: "column"}}>
                 <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelF(null)}><DropSelect items={allF} value={selF} onChange={setSelF} accent={C.orange} /></Sec>
