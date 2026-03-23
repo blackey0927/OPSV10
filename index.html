@@ -272,12 +272,25 @@ async function doUnlock(isAutoLogin = false) {
     function SelBtn({item, selected, onSelect, color}) { const sel = selected === item.id; return <button onClick={()=>onSelect(item.id)} title={item.en||""} style={{background:sel?`${color}22`:"var(--card)", border:`1px solid ${sel?color:"var(--border)"}`, color:sel?color:"var(--text)", padding:"4px 9px", borderRadius:13, fontSize:11, cursor:"pointer", fontWeight:sel?700:400}}>{sel?"✓ ":""}{item.label}</button>; }
     function DropSelect({ items, value, onChange, accent, placeholder = "── 請選擇 ──" }) { const selected = items.find(i => i.id === value); return ( <div className="ops-select-wrap"> <select className="ops-select" value={value || ""} onChange={e => onChange(e.target.value || null)} style={{ border: `1px solid ${value ? accent : "var(--border)"}`, color: value ? accent : "var(--text)" }}> <option value="">{placeholder}</option>{items.map(item => <option key={item.id} value={item.id}>{item.label}</option>)} </select> {selected && <div className="ops-selected-badge" style={{ background: `${accent}0f`, border: `1px solid ${accent}25`, color: `${accent}bb` }}>{selected.zh || selected.en || selected.label}</div>} </div> ); }
     // ✏️ 自訂提示詞直送元件
-    function CustomPromptSender({ isCloudMode, isRunningHubMode, isComfyGenerating, onSendComfy, onSendRH, onSendCloud, negPrompt, C }) {
+    function CustomPromptSender({ isCloudMode, isRunningHubMode, isComfyGenerating, onSendComfy, onSendRH, onSendCloud, negPrompt, cloudApiKey, currentPromptEN, fillRef, C }) {
       const [customPos, setCustomPos] = React.useState("");
       const [customNeg, setCustomNeg] = React.useState("");
       const [isOpen, setIsOpen] = React.useState(false);
       const [copiedPos, setCopiedPos] = React.useState(false);
       const [copiedNeg, setCopiedNeg] = React.useState(false);
+      const [isOptimizing, setIsOptimizing] = React.useState(false);
+      const [optimizeStatus, setOptimizeStatus] = React.useState("");
+      // 接收外部填充指令（來自 PromptCard 的 Gemini結果→自訂欄 按鈕）
+      React.useEffect(() => {
+        if (fillRef) {
+          fillRef.current = (text) => {
+            setCustomPos(text);
+            setIsOpen(true);
+            setOptimizeStatus("✅ 已將 Gemini 優化結果填入 POSITIVE 欄位");
+            setTimeout(() => setOptimizeStatus(""), 4000);
+          };
+        }
+      }, [fillRef]);
 
       const acColor = isCloudMode ? C.cloud : isRunningHubMode ? C.rhGold : C.green;
       const btnLabel = isComfyGenerating ? "⏳ 算圖中..." : isCloudMode ? "☁️ 雲端 Imagen 送出" : isRunningHubMode ? "⚡ 送至 RunningHub" : "🚀 送至 ComfyUI";
@@ -304,15 +317,102 @@ async function doUnlock(isAutoLogin = false) {
         setTimeout(() => setCopiedNeg(false), 2000);
       };
 
+      // ── 方案C：從剪貼簿貼入 ──
+      const handlePasteFromClipboard = async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (!text.trim()) return setOptimizeStatus("⚠️ 剪貼簿是空的");
+          setCustomPos(text.trim());
+          setIsOpen(true);
+          setOptimizeStatus("✅ 已從剪貼簿貼入 POSITIVE");
+          setTimeout(() => setOptimizeStatus(""), 3000);
+        } catch(e) {
+          setOptimizeStatus("❌ 無法讀取剪貼簿，請手動貼上");
+          setTimeout(() => setOptimizeStatus(""), 3000);
+        }
+      };
+
+      // ── 方案B：呼叫 Gemini API 優化 Prompt ──
+      const handleAIOptimize = async () => {
+        const sourcePrompt = customPos.trim() || currentPromptEN;
+        if (!sourcePrompt) return alert("請先生成提示詞或在 POSITIVE 欄位輸入內容！");
+        if (!cloudApiKey) return alert("請先在設定中填入 Google AI Studio API Key！");
+        setIsOptimizing(true);
+        setIsOpen(true);
+        setOptimizeStatus("✨ AI 優化中，請稍候...");
+        try {
+          const systemPrompt = "You are an expert Stable Diffusion / AI image generation prompt engineer." +
+            "\nYour task: Take the input prompt and return an OPTIMIZED version that will produce better results." +
+            "\nRules:" +
+            "\n- Keep all key visual elements, characters, outfits, poses, and scene descriptions" +
+            "\n- Improve token ordering: quality tags first, then subject, then details, then style" +
+            "\n- Add missing photography/quality tokens if beneficial" +
+            "\n- Strengthen weak descriptors with more precise visual language" +
+            "\n- Keep the same language as input (English)" +
+            "\n- Return ONLY the optimized prompt text, no explanations, no markdown, no extra text"
+
+          const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + cloudApiKey, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt + "\n\nInput prompt:\n" + sourcePrompt }] }],
+              generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+            })
+          });
+          if (!res.ok) throw new Error("API Error " + res.status);
+          const json = await res.json();
+          const optimized = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (!optimized) throw new Error("回傳內容為空");
+          setCustomPos(optimized);
+          setOptimizeStatus("✅ 優化完成！已自動填入 POSITIVE 欄位");
+          setTimeout(() => setOptimizeStatus(""), 4000);
+        } catch(e) {
+          setOptimizeStatus(`❌ 優化失敗：${e.message}`);
+          setTimeout(() => setOptimizeStatus(""), 4000);
+        } finally {
+          setIsOptimizing(false);
+        }
+      };
+
       return (
         <div style={{marginTop:16, border:`1px solid ${acColor}44`, borderRadius:12, overflow:"hidden"}}>
           <div
-            onClick={() => setIsOpen(p => !p)}
-            style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", background:`${acColor}0d`, cursor:"pointer", userSelect:"none"}}
+            style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", background:`${acColor}0d`, flexWrap:"wrap", gap:6}}
           >
-            <span style={{color:acColor, fontWeight:"bold", fontSize:13, letterSpacing:1}}>✏️ 自訂提示詞直送</span>
-            <span style={{color:acColor, fontSize:12, opacity:0.7}}>{isOpen ? "▲ 收起" : "▼ 展開"}</span>
+            <span
+              onClick={() => setIsOpen(p => !p)}
+              style={{color:acColor, fontWeight:"bold", fontSize:13, letterSpacing:1, cursor:"pointer", userSelect:"none", flex:1}}
+            >✏️ 自訂提示詞直送</span>
+            {/* 方案C：從剪貼簿貼入 */}
+            <button
+              onClick={handlePasteFromClipboard}
+              title="從剪貼簿讀取內容填入 POSITIVE"
+              style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:6,cursor:"pointer",
+                background:"transparent",border:`1px solid ${acColor}66`,color:(acColor+"BB"),transition:"all 0.15s"}}
+            >📥 貼入剪貼簿</button>
+            {/* 方案B：AI優化 */}
+            <button
+              onClick={handleAIOptimize}
+              disabled={isOptimizing}
+              title="用 Gemini AI 優化目前的提示詞並自動填入"
+              style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isOptimizing?"wait":"pointer",
+                background:isOptimizing?`${C.cloud}22`:`${C.cloud}15`,
+                border:`1px solid ${isOptimizing?C.cloud:(C.cloud+"66")}`,
+                color:isOptimizing?C.cloud:(C.cloud+"BB"),transition:"all 0.15s"}}
+            >{isOptimizing?"⏳ 優化中...":"✨ AI優化Prompt"}</button>
+            <span
+              onClick={() => setIsOpen(p => !p)}
+              style={{color:acColor, fontSize:12, opacity:0.7, cursor:"pointer", userSelect:"none"}}
+            >{isOpen ? "▲ 收起" : "▼ 展開"}</span>
           </div>
+          {/* 狀態訊息列 */}
+          {optimizeStatus && (
+            <div style={{padding:"6px 16px",fontSize:11,
+              background: optimizeStatus.startsWith("✅") ? "rgba(80,200,100,0.1)" : optimizeStatus.startsWith("❌") ? "rgba(200,50,50,0.1)" : `${C.cloud}12`,
+              color: optimizeStatus.startsWith("✅") ? "#50c070" : optimizeStatus.startsWith("❌") ? "#f55" : C.cloud,
+              borderTop:`1px solid ${acColor}22`}}
+            >{optimizeStatus}</div>
+          )}
           {isOpen && (
             <div style={{padding:"16px", background:"var(--card)"}}>
               <div style={{marginBottom:10}}>
@@ -378,10 +478,33 @@ async function doUnlock(isAutoLogin = false) {
       );
     }
 
-    function PromptCard({title, titleColor, content, onExpand, expanding, onActionSend, isCloudMode, isRunningHubMode, isComfyGenerating, C}) {
-      const [tab, setTab] = useState("en"); const [copied, setCopied] = useState(false); const txt = tab === "zh" ? (content ? content.zh : "") : (content ? content.en : "");
+    function PromptCard({title, titleColor, content, onExpand, expanding, onActionSend, isCloudMode, isRunningHubMode, isComfyGenerating, cloudApiKey, C}) {
+      const [tab, setTab] = useState("en"); const [copied, setCopied] = useState(false); const [isOptimizingPC, setIsOptimizingPC] = useState(false);
+      const txt = tab === "zh" ? (content ? content.zh : "") : (content ? content.en : "");
       const handleCopy = () => { navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 2000); };
       const acSend = isCloudMode ? C.cloud : isRunningHubMode ? C.rhGold : C.green;
+      const handleOptimizeAndFill = async () => {
+        if (!txt.trim()) return alert("請先生成提示詞！");
+        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        setIsOptimizingPC(true);
+        try {
+          const sysP = "You are an expert AI image generation prompt engineer." +
+            "\nOptimize the input prompt for better image quality. Keep all key details." +
+            "\nReturn ONLY the optimized prompt, no explanations.";
+          const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + cloudApiKey, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({contents:[{parts:[{text: sysP + "\n\nPrompt:\n" + txt}]}], generationConfig:{temperature:0.3, maxOutputTokens:2048}})
+          });
+          if (!res.ok) throw new Error("API Error " + res.status);
+          const json = await res.json();
+          const optimized = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (!optimized) throw new Error("回傳為空");
+          window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(optimized);
+          alert("✅ AI 優化完成！已填入自訂提示詞欄位");
+        } catch(e) {
+          alert("❌ AI 優化失敗：" + e.message);
+        } finally { setIsOptimizingPC(false); }
+      };
       return <div style={{background:"var(--promptBg)",border:`1px solid ${titleColor}30`,borderRadius:10,overflow:"hidden",marginBottom:8}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",borderBottom:`1px solid ${titleColor}20`, flexWrap:"wrap", gap:6}}>
           <span style={{color:titleColor,fontWeight:700,fontSize:12}}>{title}</span>
@@ -389,18 +512,56 @@ async function doUnlock(isAutoLogin = false) {
             {["en","zh"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"2px 8px",fontSize:11,border:"none",background:tab===t?`${titleColor}22`:"transparent",color:tab===t?titleColor:"var(--subtext)",cursor:"pointer",borderRadius:4,fontWeight:tab===t?700:400}}>{t.toUpperCase()}</button>)}
             {onExpand&&<Btn onClick={()=>onExpand(tab)} disabled={expanding} color={C.cyan} style={{padding:"2px 8px",fontSize:11}}>{expanding?"⟳ 擴寫...":"✦ AI智能擴寫"}</Btn>}
             
-            {/* 非雲端模式：保留原本的 API 送出按鈕 */}
-            {!isCloudMode && onActionSend && <Btn onClick={() => onActionSend(txt, tab)} disabled={isComfyGenerating} color={acSend} style={{padding:"2px 8px",fontSize:11, background:`${acSend}26`}}>{isComfyGenerating ? "⏳ 算圖中..." : (isRunningHubMode ? `⚡ 送至 RunningHub` : `🚀 送至 ComfyUI`)}</Btn>}
+            {/* 非雲端模式：AI優化 + 填入自訂欄 + 送出 */}
+            {!isCloudMode && (
+              <>
+                <Btn onClick={handleOptimizeAndFill} disabled={isOptimizingPC} color={C.cloud}
+                  style={{padding:"2px 8px",fontSize:11,background:isOptimizingPC?`${C.cloud}22`:`${C.cloud}15`}}>
+                  {isOptimizingPC ? "⏳ 優化中..." : "✨ AI優化→自訂欄"}
+                </Btn>
+                <Btn onClick={async () => {
+                  try {
+                    const t = await navigator.clipboard.readText();
+                    if (t.trim()) { window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(t.trim()); }
+                    else { alert("剪貼簿是空的"); }
+                  } catch(e) { alert("無法讀取剪貼簿，請手動貼上"); }
+                }} color={C.green} style={{padding:"2px 8px",fontSize:11,background:`${C.green}15`}}>
+                  📥 剪貼簿→自訂欄
+                </Btn>
+                {onActionSend && <Btn onClick={() => onActionSend(txt, tab)} disabled={isComfyGenerating} color={acSend} style={{padding:"2px 8px",fontSize:11, background:`${acSend}26`}}>{isComfyGenerating ? "⏳ 算圖中..." : (isRunningHubMode ? "⚡ 送至 RunningHub" : "🚀 送至 ComfyUI")}</Btn>}
+              </>
+            )}
             
             {/* 雲端模式：專屬的一鍵複製與跳轉按鈕 */}
             {isCloudMode && (
-              <Btn 
-                onClick={() => { navigator.clipboard.writeText(txt); window.open("https://gemini.google.com/app", "_blank"); }} 
-                color={C.cloud} 
-                style={{padding:"2px 8px",fontSize:11, background:`${C.cloud}26`}}
-              >
-                ⎘ 複製並開啟 Gemini
-              </Btn>
+              <>
+                <Btn 
+                  onClick={() => { navigator.clipboard.writeText(txt); window.open("https://gemini.google.com/app", "_blank"); }} 
+                  color={C.cloud} 
+                  style={{padding:"2px 8px",fontSize:11, background:`${C.cloud}26`}}
+                >
+                  ⎘ 複製並開啟 Gemini
+                </Btn>
+                <Btn
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text.trim()) {
+                        // Find the CustomPromptSender textarea and fill it
+                        window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(text.trim());
+                      } else {
+                        alert("剪貼簿是空的，請先在 Gemini 複製優化後的提示詞");
+                      }
+                    } catch(e) {
+                      alert("無法讀取剪貼簿，請手動複製後點擊「自訂提示詞直送」區塊的「📥 貼入剪貼簿」按鈕");
+                    }
+                  }}
+                  color={C.green}
+                  style={{padding:"2px 8px",fontSize:11, background:`${C.green}26`}}
+                >
+                  📥 Gemini結果→自訂欄
+                </Btn>
+              </>
             )}
 
             <Btn onClick={handleCopy} color={copied ? C.green : titleColor} style={{padding:"2px 8px",fontSize:11}}>{copied ? "✓ 已複製" : "⎘ 純複製"}</Btn>
@@ -569,6 +730,15 @@ async function doUnlock(isAutoLogin = false) {
         setSelRefPrefix(null); setSelRefCore(null); setSelRefSuffix(null); setSelRatio(null); setSelPersonSize(null); setSelCompRule(null); setSelCompBg(null);
         setSelGeminiBase([]); setSelGeminiLens(null); setSelGeminiCont(null);
       };
+
+      // ── 全域橋接 ref：放在所有 useState 之後，符合 React Hooks 規則 ──
+      const customPromptFillRef = React.useRef(null);
+      React.useEffect(() => {
+        window.__OPS_FILL_CUSTOM_PROMPT = (text) => {
+          if (customPromptFillRef.current) customPromptFillRef.current(text);
+        };
+        return () => { delete window.__OPS_FILL_CUSTOM_PROMPT; };
+      }, []);
 
       const clearAll = () => {
         setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null); setSelAngle(null); setAngleCat("all");
@@ -1080,6 +1250,18 @@ async function doUnlock(isAutoLogin = false) {
                 <div style={{fontSize:11,color:"var(--text)",lineHeight:1.6}}>
                   系統將為您自動掛載隱性浮雕微陰影等破防咒語。點擊下方生成後，按下提示詞右上方的 <b style={{color:C.cloud}}>「⎘ 複製並開啟 Gemini」</b>，即可直接在官方介面貼上生圖！
                 </div>
+                {/* ✨ AI 優化 API Key 輸入欄 */}
+                <div style={{display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:6,border:`1px solid ${C.cloud}33`}}>
+                  <label style={{fontSize:11,color:C.cloud,fontWeight:"bold",whiteSpace:"nowrap"}}>✨ AI優化 Key:</label>
+                  <input
+                    type="password"
+                    value={cloudApiKey}
+                    onChange={e => { setCloudApiKey(e.target.value); localStorage.setItem("ops_cloud_api_key", e.target.value); }}
+                    placeholder="貼上 Google AI Studio API Key（用於 AI優化Prompt）"
+                    style={{flex:1,padding:"5px 10px",background:"var(--inputBg)",border:`1px solid ${C.cloud}44`,borderRadius:5,color:"var(--text)",fontSize:11,outline:"none"}}
+                  />
+                  {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓ 已設定</span>}
+                </div>
               </div>
             ) : isRunningHubMode ? (
               <div style={{marginBottom:16,padding:"12px",background:`${C.rhGold}12`,border:`1px dashed ${C.rhGold}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
@@ -1096,6 +1278,11 @@ async function doUnlock(isAutoLogin = false) {
                   <div style={{fontSize:12,color:C.rhGold,display:"flex",alignItems:"center",gap:8,background:`${C.rhGold}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.rhGold}4D`,flex:"1 1 160px"}}>
                     <label style={{fontWeight:"bold",whiteSpace:"nowrap"}}>🆔 工作流 ID:</label>
                     <input type="text" value={rhWorkflowId} onChange={e=>{setRhWorkflowId(e.target.value);localStorage.setItem("ops_rh_workflow_id",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="如: 1234567" />
+                  </div>
+                  <div style={{fontSize:12,color:C.cloud,display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cloud}33`,flex:"1 1 200px"}}>
+                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>✨ AI優化 Key:</label>
+                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="Google AI Studio Key（AI優化Prompt用）" />
+                    {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓</span>}
                   </div>
                 </div>
 
@@ -1121,6 +1308,11 @@ async function doUnlock(isAutoLogin = false) {
                   <div style={{fontSize:12,color:C.cyan,display:"flex",alignItems:"center",gap:8,background:`${C.cyan}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cyan}4D`, flex:"1 1 200px"}}>
                     <label style={{fontWeight:"bold", whiteSpace:"nowrap"}}>🔌 ComfyUI API:</label>
                     <input type="text" value={comfyUrl} onChange={e=>setComfyUrl(e.target.value)} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="http://127.0.0.1:8188" />
+                  </div>
+                  <div style={{fontSize:12,color:C.cloud,display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cloud}33`, flex:"1 1 200px"}}>
+                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>✨ AI優化 Key:</label>
+                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="Google AI Studio Key（AI優化Prompt用）" />
+                    {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓</span>}
                   </div>
                   <div style={{fontSize:12,color:C.orange,display:"flex",alignItems:"center",gap:8,background:`${C.orange}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.orange}4D`, flex:"1 1 300px"}}>
                     <label style={{fontWeight:"bold", whiteSpace:"nowrap"}}>📁 上傳 API JSON:</label>
@@ -1661,7 +1853,7 @@ async function doUnlock(isAutoLogin = false) {
 
             {result&&<div>
               <div style={{fontSize:11, color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green, marginBottom:8, letterSpacing:1}}>{isCloudMode ? "☁️ 已啟用雲端破防模式：自動掛載隱性浮雕微陰影咒語" : isRunningHubMode ? "⚡ Z-image 新王登基模式：點擊正向提示詞右側按鈕送至 RunningHub 算圖" : "✔ 已自動植入: sks_salon, sks_je, IPD 1:1, 滿血物理張力詞"}</div>
-              <PromptCard title="＋ 正向提示詞 POSITIVE" titleColor={isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green} content={prompts.pos} onExpand={lang=>handleExpand("pos",lang)} expanding={expandingState.pos_zh||expandingState.pos_en} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} C={C}/>
+              <PromptCard title="＋ 正向提示詞 POSITIVE" titleColor={isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green} content={prompts.pos} onExpand={lang=>handleExpand("pos",lang)} expanding={expandingState.pos_zh||expandingState.pos_en} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} cloudApiKey={cloudApiKey} C={C}/>
               <PromptCard title="－ 負向提示詞 NEGATIVE" titleColor={C.red} content={prompts.neg} C={C}/>
               {selChars.map(charId => {
                   const p = prompts[charId]; const ch = mergedChars[charId]; if (!p || (!p.zh && !p.en)) return null;
@@ -1679,6 +1871,9 @@ async function doUnlock(isAutoLogin = false) {
               onSendRH={handleRunningHubSend}
               onSendCloud={handleCloudGenerate}
               negPrompt={prompts.neg}
+              cloudApiKey={cloudApiKey}
+              currentPromptEN={prompts.pos?.en || ""}
+              fillRef={customPromptFillRef}
               C={C}
             />
 
