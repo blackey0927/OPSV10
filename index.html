@@ -67,44 +67,6 @@
     .ops-selected-badge { margin-top: 6px; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-family: monospace; line-height: 1.5; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .comfy-image { animation: fadeIn 0.5s ease-out; }
-
-    /* ══════════════════════════════════════════
-       RESPONSIVE MOBILE FIX v10.1
-       ══════════════════════════════════════════ */
-
-    /* Mode switcher: stack vertically on narrow screens */
-    @media (max-width: 520px) {
-      .mode-switcher-row { flex-direction: column !important; }
-      .mode-switcher-row button { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; font-size: 12px !important; padding: 8px 6px !important; }
-    }
-
-    /* Main 2-col grid: single column on mobile */
-    @media (max-width: 640px) {
-      .main-col-grid { grid-template-columns: 1fr !important; }
-      .main-col-grid > div + div { margin-top: 0; }
-    }
-
-    /* Shot filter tabs + category tabs: wrap nicely */
-    @media (max-width: 480px) {
-      .filter-tab-row { gap: 2px !important; }
-      .filter-tab-row button { font-size: 9px !important; padding: 2px 5px !important; }
-    }
-
-    /* Prevent horizontal overflow */
-    #ops-app-root { overflow-x: hidden; }
-    * { box-sizing: border-box; }
-
-    /* Generate button safe area for mobile */
-    @media (max-width: 520px) {
-      .gen-btn-wrap { position: sticky; bottom: 0; z-index: 10; padding: 8px 0; background: var(--bg); }
-      .app-header { padding: 6px 10px !important; }
-      .app-header button { padding: 5px 8px !important; font-size: 11px !important; }
-    }
-
-    /* Sec cards: reduce padding on mobile */
-    @media (max-width: 520px) {
-      .sec-card { padding: 10px 8px !important; }
-    }
   </style>
 </head>
 <body>
@@ -454,7 +416,7 @@ async function doUnlock(isAutoLogin = false) {
     }
     function Sec({title, children, aiCategory, onAIGenerate, onCustomAdd, accentColor, actionNode, onClear, containerStyle}) {
       const [val, setVal] = useState(""); const handleAdd = () => { if(val.trim()) { onCustomAdd(aiCategory, val.trim()); setVal(""); } };
-      return <div className="sec-card" style={{background:"var(--card)",border:`1px solid var(--border)`,borderRadius:9,padding:"11px 13px",marginBottom:8, ...containerStyle}}>
+      return <div style={{background:"var(--card)",border:`1px solid var(--border)`,borderRadius:9,padding:"11px 13px",marginBottom:8, ...containerStyle}}>
         <div style={{display:"flex",justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:8}}>
           <div style={{fontSize:11,color:accentColor,letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>{title}</div>
           <div style={{display:"flex", gap:6, alignItems:"center"}}>
@@ -506,6 +468,8 @@ async function doUnlock(isAutoLogin = false) {
       const [selAngle, setSelAngle] = useState(null);
       const [angleCat, setAngleCat] = useState("all");
       const [shotFilter, setShotFilter] = useState("all");
+      const [fabricSeason, setFabricSeason] = useState("all");
+      const [bottomSeason, setBottomSeason] = useState("all");
       const [selShoe, setSelShoe] = useState(null);
       const [shoeCat, setShoeCat] = useState("all");
       const [customExpr, setCustomExpr] = useState([]); const [customComp, setCustomComp] = useState([]);
@@ -550,12 +514,12 @@ async function doUnlock(isAutoLogin = false) {
       const filteredAngleList = angleCat === "all" ? ANGLE_DB : ANGLE_DB.filter(a => a.cat === angleCat);
       const SHOT_CATS = [
         { key:"all", label:"全部景別", en:"All" },
-        { key:"cu",  label:"👁 特寫",    en:"Close-Up",        desc:"臉/頭部為主" },
-        { key:"mcu", label:"👤 近景",    en:"Medium CU",       desc:"胸部以上" },
-        { key:"ms",  label:"🧍 半身",    en:"Medium Shot",     desc:"腰部以上" },
-        { key:"mls", label:"📐 七分身",  en:"Medium Long",     desc:"膝蓋以上" },
-        { key:"fs",  label:"🧍‍♀️ 全身",  en:"Full Shot",       desc:"完整全身" },
-        { key:"ls",  label:"🌄 帶景全身",en:"Long Shot",       desc:"人物+大環境" },
+        { key:"cu",  label:"👁 特寫",    en:"Close-Up",    desc:"臉/頭部為主" },
+        { key:"mcu", label:"👤 近景",    en:"Medium CU",   desc:"胸部以上" },
+        { key:"ms",  label:"🧍 半身",    en:"Medium Shot", desc:"腰部以上" },
+        { key:"mls", label:"📐 七分身",  en:"Medium Long", desc:"膝蓋以上" },
+        { key:"fs",  label:"🧍‍♀️ 全身",  en:"Full Shot",   desc:"完整全身" },
+        { key:"ls",  label:"🌄 帶景全身",en:"Long Shot",   desc:"人物+大環境" },
       ];
       const filteredPoseList = (() => {
         let list = allP;
@@ -577,6 +541,21 @@ async function doUnlock(isAutoLogin = false) {
         { key:"cosplay",    label:"🎭 Cosplay" }
       ];
       const filteredShoeList = shoeCat === "all" ? SHOE_DB : SHOE_DB.filter(x => x.cat === shoeCat);
+      const SEASON_CATS = [
+        { key:"all", label:"🌍 全部", count_label:"全部" },
+        { key:"ss",  label:"🌸 春夏", count_label:"春夏款" },
+        { key:"aw",  label:"🍂 秋冬", count_label:"秋冬款" },
+      ];
+      const filteredFabricList = (() => {
+        let list = [...FABRIC_DB, ...customDB.fabric];
+        if (fabricSeason !== "all") list = list.filter(x => x.season === fabricSeason);
+        return list;
+      })();
+      const filteredBottomList = (() => {
+        let list = [...BOTTOM_DB, ...customDB.bottom];
+        if (bottomSeason !== "all") list = list.filter(x => x.season === bottomSeason);
+        return list;
+      })();
       const allL = [...LIGHT_DB, ...customDB.light]; const allA = [...ACC_DB, ...customDB.acc];
       const allEmotion = [...EMOTION_DB]; 
       const sceneList = [...SCENE_DB, ...customDB.scene];
@@ -595,7 +574,7 @@ async function doUnlock(isAutoLogin = false) {
         setSelF(null); setSelB(null); setSelL(null); setSelP(null); setSelM(null); setSelS(null); setSelExpr(null); setSelAngle(null); setAngleCat("all");
         setSelA([]); setSelBra([]); setSelEmotion([]); setSelOutfitStyle(null); setSelHairStyle(null); setSelHairColor(null);
         setSelShoe(null); setShoeCat("all");
-        setShotFilter("all");
+        setFabricSeason("all"); setBottomSeason("all"); setShotFilter("all");
         setLightContrast(50); clearGeminiSection(); setResult(null); setPrompts({pos:{zh:"",en:""},neg:{zh:"",en:""}});
       };
 
@@ -927,9 +906,8 @@ async function doUnlock(isAutoLogin = false) {
         if (b) { chunksZH.push(`搭配 ${b.zh || b.label}`); chunksEN.push(`with ${b.en}`); }
         
         if (accZH) { 
-            // [v10.1修正] 飾品 1.1 → 1.2，防止被服裝色彩競爭稀釋
-            chunksZH.push(isCloudMode ? `[飾品: ${accZH}]` : `(${accZH}:1.2)`); 
-            chunksEN.push(isCloudMode ? `[accessories: ${accEN}]` : `(${accEN}:1.2)`); 
+            chunksZH.push(isCloudMode ? `[飾品: ${accZH}]` : `(${accZH}:1.1)`); 
+            chunksEN.push(isCloudMode ? `[accessories: ${accEN}]` : `(${accEN}:1.1)`); 
         }
 
         if (braResolved.length > 0) {
@@ -946,15 +924,14 @@ async function doUnlock(isAutoLogin = false) {
         }
 
         if (p) {
-          // [v10.1修正] 姿勢一律加()括號注入，防止低w姿勢被服裝長描述淹沒失效
-          // 診斷：p3插袋站姿 w=1.15 原本裸文字輸出 → 生圖時姿勢完全失效
+          // 姿勢權重注入：根據 w 值決定是否加包裹，高動態姿勢加強權重防止被服裝細節淹沒
           const pW = p.w || 1.15;
           if (isCloudMode) {
             chunksZH.push(`[姿勢: ${p.zh || p.label}]`);
             chunksEN.push(`[pose: ${p.en}]`);
           } else {
-            chunksZH.push(`(${p.zh || p.label}:${pW})`);
-            chunksEN.push(`(${p.en}:${pW})`);
+            chunksZH.push(pW >= 1.25 ? `(${p.zh || p.label}:${pW})` : p.zh || p.label);
+            chunksEN.push(pW >= 1.25 ? `(${p.en}:${pW})` : p.en);
           }
         }
         // 攝影視角 ANGLE：對構圖影響力極強，一律注入高權重
@@ -984,16 +961,7 @@ async function doUnlock(isAutoLogin = false) {
             }
           }
         }
-        if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){
-          // [v10.1修正] 場景加模式標記，雲端用[]，本地用()強化
-          if (isCloudMode) {
-            chunksZH.push(`[場景: ${so.zh}]`);
-            chunksEN.push(`[scene: ${so.en}]`);
-          } else {
-            chunksZH.push(`(場景在 ${so.zh}:1.15)`);
-            chunksEN.push(`(scene in ${so.en}:1.15)`);
-          }
-        } }
+        if (selS) { const so = sceneList.find(x=>x.id===selS); if(so){ chunksZH.push(`場景在 ${so.zh}`); chunksEN.push(`scene in ${so.en}`); } }
         if (l) { chunksZH.push(l.zh || l.label); chunksEN.push(l.en); }
         
         // --- [優化] 光影對比度判斷語義 (確保明暗交界清晰) ---
@@ -1085,9 +1053,9 @@ async function doUnlock(isAutoLogin = false) {
               ))}
           </div>
 
-          <div className="app-header" style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:4,position:"sticky",top:0,zIndex:100}}>
+          <div style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
             <div>
-              <div style={{color:C.orange,fontWeight:900,fontSize:"clamp(11px,3.5vw,15px)",letterSpacing:"clamp(1px,1vw,4px)",lineHeight:1.3}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
+              <div style={{color:C.orange,fontWeight:900,fontSize:15,letterSpacing:4}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
               <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.1 終極進化版</div>
             </div>
             <div style={{display:"flex", gap:8}}>
@@ -1096,11 +1064,11 @@ async function doUnlock(isAutoLogin = false) {
             </div>
           </div>
 
-          <div style={{maxWidth:1100,margin:"0 auto",padding:"12px 8px"}}>
-            <div className="mode-switcher-row" style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
-              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>安全模式·雲端破防咒語</span></button>
-              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>新王登基·雲端 ComfyUI 算力</span></button>
-              <button style={{flex:1,minWidth:0,padding:"8px 6px",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>RTX 5090·極限物理張力</span></button>
+          <div style={{maxWidth:1100,margin:"0 auto",padding:"16px 16px"}}>
+            <div style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>安全模式·雲端破防咒語</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>新王登基·雲端 ComfyUI 算力</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>RTX 5090·極限物理張力</span></button>
             </div>
 
             {isCloudMode ? (
@@ -1188,11 +1156,41 @@ async function doUnlock(isAutoLogin = false) {
               </div>
             )}
 
-            <div className="main-col-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               {/* === 左側欄位 === */}
               <div style={{display: "flex", flexDirection: "column"}}>
-                <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelF(null)}><DropSelect items={allF} value={selF} onChange={setSelF} accent={C.orange} /></Sec>
-                <Sec title="② 下裝 BOTTOM" aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>setSelB(null)}><DropSelect items={allB} value={selB} onChange={setSelB} accent={C.orange} /></Sec>
+                <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>{setSelF(null);setFabricSeason("all");}}>
+                  {/* 季節篩選 */}
+                  <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
+                    {SEASON_CATS.map(c=>{
+                      const cnt = c.key==="all" ? [...FABRIC_DB,...customDB.fabric].length : [...FABRIC_DB,...customDB.fabric].filter(x=>x.season===c.key).length;
+                      const isActive = fabricSeason===c.key;
+                      return <button key={c.key} onClick={()=>{setFabricSeason(c.key);setSelF(null);}} style={{
+                        padding:"2px 9px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700,
+                        background:isActive?`${C.orange}33`:"transparent",
+                        border:`1px solid ${isActive?C.orange:C.orange+"55"}`,
+                        color:isActive?C.orange:C.orange+"AA",transition:"all 0.15s"
+                      }}>{c.label}<span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span></button>;
+                    })}
+                  </div>
+                  <DropSelect items={filteredFabricList} value={selF} onChange={setSelF} accent={C.orange} />
+                </Sec>
+                <Sec title="② 下裝 BOTTOM" aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelB(null);setBottomSeason("all");}}>
+                  {/* 季節篩選 */}
+                  <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
+                    {SEASON_CATS.map(c=>{
+                      const cnt = c.key==="all" ? [...BOTTOM_DB,...customDB.bottom].length : [...BOTTOM_DB,...customDB.bottom].filter(x=>x.season===c.key).length;
+                      const isActive = bottomSeason===c.key;
+                      return <button key={c.key} onClick={()=>{setBottomSeason(c.key);setSelB(null);}} style={{
+                        padding:"2px 9px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700,
+                        background:isActive?`${C.cyan}33`:"transparent",
+                        border:`1px solid ${isActive?C.cyan:C.cyan+"55"}`,
+                        color:isActive?C.cyan:C.cyan+"AA",transition:"all 0.15s"
+                      }}>{c.label}<span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span></button>;
+                    })}
+                  </div>
+                  <DropSelect items={filteredBottomList} value={selB} onChange={setSelB} accent={C.cyan} />
+                </Sec>
                 <Sec title="③ 姿勢 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelP(null);setShotFilter("all");}}>
                   {/* 景別篩選 */}
                   <div style={{marginBottom:6}}>
