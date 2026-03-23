@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔐 OPS 系統 (V10.1 終極進化版)</title>
+  <title>🔐 OPS 系統 (V10.2 終極進化版)</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0a0a0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -243,7 +243,7 @@ async function doUnlock(isAutoLogin = false) {
     function simulateAIExpand(basePrompt, lang) {
       if (!basePrompt) return "";
       
-      // V10.1 擴寫詞庫：強化明暗對照與微距細節
+      // V10.2 擴寫詞庫：強化明暗對照與微距細節
       const extras_zh = [
         "呈現極致的明暗對照敘事", 
         "充滿戲劇張力的視覺構成", 
@@ -473,7 +473,7 @@ async function doUnlock(isAutoLogin = false) {
             "\nOutput ONLY these two sections. No explanations, no markdown, no extra text."
 
                     setOptimizeStatus("✨ AI 優化中（第1次請求，最多重試3次）...");
-          const optimized = await callGeminiWithRetry(cloudApiKey, systemPrompt + "\n\nInput prompt:\n" + sourcePrompt);
+          const optimized = await callGeminiWithRetry(cloudApiKey, systemPrompt + "\n\nInput prompt:\n" + sourcePrompt, 4096);
 
           // Parse EN and ZH sections
           const enMatch = optimized.match(/\[EN\]([\s\S]*?)(?=\[ZH\]|$)/i);
@@ -627,7 +627,7 @@ async function doUnlock(isAutoLogin = false) {
           const sysP = "You are an expert AI image generation prompt engineer." +
             "\nOptimize the input prompt for better image quality. Keep all key details." +
             "\nReturn ONLY the optimized prompt, no explanations.";
-          const optimized = await callGeminiWithRetry(cloudApiKey, sysP + "\n\nPrompt:\n" + txt);
+          const optimized = await callGeminiWithRetry(cloudApiKey, sysP + "\n\nPrompt:\n" + txt, 4096);
           window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(optimized);
           alert("✅ AI 優化完成！已填入自訂提示詞欄位");
         } catch(e) {
@@ -736,7 +736,7 @@ async function doUnlock(isAutoLogin = false) {
 
       const [isCloudMode, setIsCloudMode] = useState(true); const [useHardcoreTags, setUseHardcoreTags] = useState(true);
       const [comfyUrl, setComfyUrl] = useState(() => localStorage.getItem("ops_comfy_url") || "http://127.0.0.1:8188");
-      // --- V10.1 新增：自訂 ComfyUI 工作流與節點綁定 ---
+      // --- V10.2 新增：自訂 ComfyUI 工作流與節點綁定 ---
              const [comfyWorkflow, setComfyWorkflow] = useState(() => {
                 const saved = localStorage.getItem("ops_comfy_workflow");
                 return saved ? JSON.parse(saved) : COMFY_WORKFLOW_TEMPLATE;
@@ -789,7 +789,7 @@ async function doUnlock(isAutoLogin = false) {
       const [refOutfit, setRefOutfit] = useState(false); const [refPose, setRefPose] = useState(false); 
       const [refScene, setRefScene] = useState(false); const [refCharacter, setRefCharacter] = useState(false);
       
-      // V10.1 新增強制狀態變數
+      // V10.2 新增強制狀態變數
       const [refDogSelfie, setRefDogSelfie] = useState(false);
       const [refCheerMakeup, setRefCheerMakeup] = useState(false);
 
@@ -1214,7 +1214,7 @@ async function doUnlock(isAutoLogin = false) {
           ? "單人女孩，獨自，極致寫實攝影，原始照片，8k超高清，真實皮膚毛孔紋理，大師之作" 
           : "fabric_tension_imprint, 單人女孩, 獨自, IPD 1:1, 窄臉, 極致寫實攝影, 原始照片, 8k超高清, 精確皮膚質地";
 
-        // --- [優化] V10.1 高密度動作與光影敘事：落實生活感細節 ---
+        // --- [優化] V10.2 高密度動作與光影敘事：落實生活感細節 ---
         const motion_EN = "High-density natural motion, fluid body language, strands of hair moving with breath, subtle micro-expressions, masterful cinematic lighting, professional Chiaroscuro effect, dynamic depth of field, narrative atmosphere";
 
         const motion_ZH = "高密度自然動作，流暢肢體語言，髮絲隨呼吸輕微起伏，細膩微表情。大師級電影光影，專業明暗對照法 (Chiaroscuro)，動態景深，敘事感氛圍";
@@ -1226,13 +1226,13 @@ async function doUnlock(isAutoLogin = false) {
         if (refScene) { chunksZH.push("[依照參考圖場景:讓人物在場景中生成]"); chunksEN.push("[Based on scene reference: generate character in scene]"); }
         if (refCharacter) { chunksZH.push("[讓參考圖的人物融入提示詞生成出對應的圖片]"); chunksEN.push("[Integrate the reference image character into the prompt to generate the corresponding image]"); }
         
-        // V10.1 更新：強制狗自拍與場景
+        // V10.2 更新：強制狗自拍與場景
         if (refDogSelfie) {
             chunksZH.push("[讓參考圖的人物穿著參考圖的服裝，展現出明顯的豐滿體態，參考圖中人物姿態:抱著參考圖中的狗狗，站在參考圖中的物品前面，對著鏡頭自拍，俏皮可愛的嘴臉表情。人物比例要夠大夠靠近鏡頭。直接在參考圖的場景中照片生成]");
             chunksEN.push("[Let the character wear the reference clothing, displaying a full figure, pose: hugging the dog and standing in front of objects from the reference, taking a selfie looking at the camera with a playful and cute expression. Large character proportion close to the camera. Generate directly in the reference scene]");
         }
         
-        // V10.1 更新：啦啦隊妝容強制寫入
+        // V10.2 更新：啦啦隊妝容強制寫入
         if (refCheerMakeup) {
             chunksZH.push("[妝容: 啦啦隊舞台妝容，甜美偶像風，無瑕半霧面底妝透出柔和高光，提亮膚色，平滑隱形毛孔，柔和蜜桃粉眼影加深淺暖棕色，強調下眼瞼臥蠶，眼下點綴半透明水晶般閃片，睫毛纖長分明自然捲翹，柔和的平眉圓潤眉型，蘋果肌刷上淺蜜桃色腮紅，水潤亮澤的紅粉色唇彩，充滿青春活力，上鏡妝效]");
             chunksEN.push("[makeup: cheerleader stage makeup, sweet idol style, flawless semi-matte base makeup with soft glow highlights, brightened skin tone, smooth pore-blurred texture, soft peach-pink eyeshadow with light warm brown depth, lower eyelid aegyo-sal emphasized, translucent crystal-like glitter scattered under eyes, long separated lashes with natural curl, soft straight brown eyebrows with rounded shape, light peach blush on apple of cheeks, glossy red-pink hydrated lips, youthful, energetic, camera-friendly makeup]");
@@ -1247,10 +1247,10 @@ async function doUnlock(isAutoLogin = false) {
             if (z) chunksZH.push(z); if (e) chunksEN.push(e);
         });
 
-        // V10.1 動態防雷負面詞庫 (根據景別自動注入)
+        // V10.2 動態防雷負面詞庫 (根據景別自動注入)
         let dynamicNegZH = []; let dynamicNegEN = [];
 
-        // --- V10.1 智能景別與權重對抗引擎 ---
+        // --- V10.2 智能景別與權重對抗引擎 ---
         if (selGeminiBase.length > 0) {
             let basesZH = []; let basesEN = [];
             selGeminiBase.forEach(id => {
@@ -1298,7 +1298,7 @@ async function doUnlock(isAutoLogin = false) {
             chunksEN.push(isCloudMode ? `[hair color: ${hc.en}]` : `(${hc.en}:1.3)`); 
         }
 
-        // V10.1 雙引擎架構：雲端保留 [標籤]，本地端轉化為 (權重:1.2) 防止被服裝細節吃掉
+        // V10.2 雙引擎架構：雲端保留 [標籤]，本地端轉化為 (權重:1.2) 防止被服裝細節吃掉
         if (m && !refCheerMakeup) { 
             chunksZH.push(isCloudMode ? `[妝容: ${m.zh || m.label}]` : `(${m.zh || m.label}:1.15)`); 
             chunksEN.push(isCloudMode ? `[makeup: ${m.en}]` : `(${m.en}:1.15)`); 
@@ -1425,7 +1425,7 @@ async function doUnlock(isAutoLogin = false) {
             neg: { zh: finalNegZH, en: finalNegEN }
           };
           
-          // V10.1: 角色卡徹底捨棄 [ ]，轉化為 CLIP 友善的高權重 ()
+          // V10.2: 角色卡徹底捨棄 [ ]，轉化為 CLIP 友善的高權重 ()
           if (!isCloudMode) { 
             selChars.forEach(charId => { 
               const ch = mergedChars[charId]; 
@@ -1474,7 +1474,7 @@ async function doUnlock(isAutoLogin = false) {
           <div style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
             <div>
               <div style={{color:C.orange,fontWeight:900,fontSize:15,letterSpacing:4}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
-              <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.1 終極進化版</div>
+              <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.2 終極進化版</div>
             </div>
             <div style={{display:"flex", gap:8}}>
               <Btn onClick={clearAll} color={C.red} style={{background:"transparent"}}>✕ 清空全部</Btn>
@@ -2036,10 +2036,10 @@ async function doUnlock(isAutoLogin = false) {
                   <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refScene?`${C.cyan}33`:"var(--card)", border:`1px solid ${refScene?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refScene?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refScene} onChange={e=>setRefScene(e.target.checked)} style={{accentColor:C.cyan}}/> 依照參考圖場景：讓人物在場景中生成</label>
                   <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCharacter?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCharacter?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCharacter?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refCharacter} onChange={e=>setRefCharacter(e.target.checked)} style={{accentColor:C.cyan}}/> 讓參考圖的人物融入提示詞生成出對應的圖片</label>
                   
-                  {/* V10.1 新增: 抱狗自拍與場景 */}
+                  {/* V10.2 新增: 抱狗自拍與場景 */}
                   <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refDogSelfie?`${C.cyan}33`:"var(--card)", border:`1px solid ${refDogSelfie?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refDogSelfie?C.cyan:"var(--subtext)", fontWeight:refDogSelfie?"bold":"normal"}}><input type="checkbox" checked={refDogSelfie} onChange={e=>setRefDogSelfie(e.target.checked)} style={{accentColor:C.cyan}}/> 🐶 強制：抱狗自拍與場景</label>
                   
-                  {/* V10.1 新增: 啦啦隊妝容 */}
+                  {/* V10.2 新增: 啦啦隊妝容 */}
                   <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCheerMakeup?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCheerMakeup?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCheerMakeup?C.cyan:"var(--subtext)", fontWeight:refCheerMakeup?"bold":"normal"}}><input type="checkbox" checked={refCheerMakeup} onChange={e=>setRefCheerMakeup(e.target.checked)} style={{accentColor:C.cyan}}/> ✨ 自訂啦啦隊妝容</label>
                 </div>
               </div>
