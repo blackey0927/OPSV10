@@ -353,7 +353,13 @@ async function doUnlock(isAutoLogin = false) {
       const BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
       const body = JSON.stringify({
         contents:[{parts:[{text: prompt}]}],
-        generationConfig:{temperature:0.3, maxOutputTokens:(maxTokens||2048)}
+        generationConfig:{temperature:0.3, maxOutputTokens:(maxTokens||2048)},
+        safetySettings:[
+          {category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_NONE"},
+          {category:"HARM_CATEGORY_HATE_SPEECH",threshold:"BLOCK_NONE"},
+          {category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_ONLY_HIGH"},
+          {category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_NONE"}
+        ]
       });
       for (let mi = 0; mi < models.length; mi++) {
         const model = models[mi];
@@ -363,7 +369,14 @@ async function doUnlock(isAutoLogin = false) {
           if (res.ok) {
             const json = await res.json();
             const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (!text) throw new Error("回傳內容為空");
+            if (!text) {
+              // 嘗試從 finishReason 判斷原因
+              const reason = json.candidates?.[0]?.finishReason || "UNKNOWN";
+              const blocked = json.promptFeedback?.blockReason;
+              if (blocked) throw new Error("內容被安全過濾器攔截：" + blocked + "\n請嘗試移除提示詞中的敏感描述");
+              if (mi < models.length - 1) break; // 嘗試備用模型
+              throw new Error("回傳內容為空（finishReason: " + reason + "）\n請稍後重試或縮短提示詞");
+            }
             return text;
           }
           if (res.status === 429) {
@@ -864,7 +877,7 @@ async function doUnlock(isAutoLogin = false) {
         }
         setTranslatingScene(null);
       };
-      const [storyboardMode, setStoryboardMode] = useState("video");   // "video" | "image"
+      const [storyboardMode, setStoryboardMode] = useState("video");   // "video" | "image" | "flow"
       const [storyboardOutline, setStoryboardOutline] = useState("");  // 內容大綱輸入
       const [storyboardCount, setStoryboardCount] = useState(8);       // 生成組數
 
@@ -982,6 +995,7 @@ async function doUnlock(isAutoLogin = false) {
         const srcEn = prompts.pos?.en || "";
         const srcZh = prompts.pos?.zh || "";
         if (storyboardMode === "video" && !srcEn && !srcZh) return alert("請先生成提示詞！");
+        if (storyboardMode === "flow" && !srcEn && !srcZh && !storyboardOutline.trim()) return alert("請先生成提示詞或輸入故事大綱！");
         if (storyboardMode === "image" && !storyboardOutline.trim()) return alert("請輸入【內容大綱】！");
         if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
         setIsGenStoryboard(true);
@@ -1004,7 +1018,7 @@ async function doUnlock(isAutoLogin = false) {
               kling: klingMatch ? klingMatch[0].replace(/\[KlingAI\]/i,"").trim() : result,
               hailuo: hailuoMatch ? hailuoMatch[0].replace(/\[Hailuo\]/i,"").trim() : "",
             });
-          } else {
+          } else if (storyboardMode === "image") {
             // ── 文生圖分鏡模式（新功能）──
             const count = storyboardCount || 8;
             const baseChar = srcEn || srcZh || "(根據大綱自動設定角色)";
@@ -1033,6 +1047,34 @@ async function doUnlock(isAutoLogin = false) {
             // Parse scenes by "Next Scene:" marker
             const scenes = result.split(/Next Scene:/i).map(s => s.trim()).filter(s => s.length > 20);
             setStoryboardResult({ mode: "image", scenes, raw: result });
+          } else if (storyboardMode === "flow") {
+            const count = storyboardCount || 8;
+            // Sanitize: remove weight tags and anatomy tokens that may trigger safety filters
+            const rawRef = srcEn || srcZh || "";
+            const baseRef = rawRef
+              .replace(/\(([^)]+):\d+\.\d+\)/g, "$1")  // remove (word:1.3) weights
+              .replace(/\[[^\]]+\]/g, "")               // remove [bracket] sections
+              .replace(/nipple[^,]*/gi, "")             // remove anatomy triggers
+              .replace(/bra outline[^,]*/gi, "")
+              .replace(/breast[^,]*/gi, "")
+              .replace(/,\s*,/g, ",").trim()
+              .substring(0, 800);                       // limit length
+            const outline = storyboardOutline.trim();
+            const sysP = "You are a creative director writing storyboard descriptions for Google Flow AI video tool (Veo 3.1)." +
+              "\nGenerate EXACTLY " + count + " sequential scene descriptions. Output ALL " + count + " scenes — never stop early." +
+              "\n\nFORMAT RULES:" +
+              "\n- Natural cinematic English prose — NO Danbooru tags, NO weight syntax like (word:1.3)" +
+              "\n- Each scene: 80-120 words of flowing prose" +
+              "\n- Include: subject action, camera shot type, camera movement, lighting mood, environment" +
+              "\n- Maintain character continuity: same appearance, outfit, hair color across all scenes" +
+              "\n- NO dialogue sentences" +
+              "\n\nOUTPUT: Start each scene with [Scene N] on its own line, then prose. Blank line between scenes." +
+              (baseRef ? "\n\nCharacter/Style reference:\n" + baseRef : "") +
+              (outline ? "\n\nStory outline:\n" + outline : "");
+            const result = await callGeminiWithRetry(cloudApiKey, sysP, Math.max(6000, count * 500));
+            const rawScenes = result.split("[Scene ").slice(1).map(function(s){ const nl=s.indexOf("\n"); return nl>-1?s.slice(nl).trim():s.trim(); }).filter(function(s){return s.length>20;});
+            setStoryboardResult({ mode: "flow", scenes: rawScenes, raw: result });
+            setSceneTranslations({});
           }
         } catch(e) {
           alert("❌ 分鏡生成失敗：" + e.message);
@@ -2239,13 +2281,17 @@ async function doUnlock(isAutoLogin = false) {
                 <span style={{color:"#a78bfa",fontWeight:"bold",fontSize:13,letterSpacing:1}}>🎬 AI 分鏡 Prompt 生成器</span>
                 <div style={{display:"flex",gap:8,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
                   {/* 模式切換 */}
-                  {["video","image"].map(m=>(
-                    <button key={m} onClick={()=>setStoryboardMode(m)} style={{
+                  {[
+                    {key:"video", label:"🎥 影片分鏡"},
+                    {key:"image", label:"🖼 文生圖分鏡"},
+                    {key:"flow",  label:"🌊 Flow格式"}
+                  ].map(({key,label})=>(
+                    <button key={key} onClick={()=>setStoryboardMode(key)} style={{
                       padding:"2px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",
-                      background:storyboardMode===m?"rgba(167,139,250,0.3)":"transparent",
-                      border:"1px solid #a78bfa"+(storyboardMode===m?"":"66"),
-                      color:"#a78bfa"+(storyboardMode===m?"":"99")
-                    }}>{m==="video"?"🎥 影片分鏡":"🖼 文生圖分鏡"}</button>
+                      background:storyboardMode===key?"rgba(167,139,250,0.3)":"transparent",
+                      border:"1px solid #a78bfa"+(storyboardMode===key?"":"66"),
+                      color:"#a78bfa"+(storyboardMode===key?"":"99")
+                    }}>{label}</button>
                   ))}
                   <button
                     onClick={handleGenStoryboard}
@@ -2258,6 +2304,35 @@ async function doUnlock(isAutoLogin = false) {
                 </div>
               </div>
 
+              {/* Flow 格式模式 - 輸入區 */}
+              {showStoryboard && storyboardMode==="flow" && (
+                <div style={{padding:"12px 16px",background:"rgba(167,139,250,0.04)",borderBottom:"1px solid #a78bfa22",display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,color:"#a78bfa",fontWeight:700,whiteSpace:"nowrap"}}>生成組數：</span>
+                    {[4,6,8,10].map(n=>(
+                      <button key={n} onClick={()=>setStoryboardCount(n)} style={{
+                        padding:"2px 10px",fontSize:11,fontWeight:700,borderRadius:5,cursor:"pointer",
+                        background:storyboardCount===n?"rgba(167,139,250,0.3)":"transparent",
+                        border:"1px solid #a78bfa"+(storyboardCount===n?"":"55"),
+                        color:"#a78bfa"+(storyboardCount===n?"":"99")
+                      }}>{n} 組</button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={storyboardOutline}
+                    onChange={e=>setStoryboardOutline(e.target.value)}
+                    placeholder={"【故事大綱】（選填，留空則從目前提示詞延伸）\n例：女孩在黃昏的城市漫步，進入咖啡廳，窗邊對視，微笑離去..."}
+                    rows={4}
+                    style={{width:"100%",padding:"10px 12px",background:"var(--inputBg)",border:"1px solid #a78bfa44",borderRadius:8,color:"var(--text)",fontSize:12,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"sans-serif",lineHeight:1.7}}
+                  />
+                  <div style={{fontSize:10,color:"#a78bfa77",lineHeight:1.7}}>
+                    ✦ 輸出格式：自然語言英文描述，適合直接貼入 <b style={{color:"#a78bfa"}}>Google Flow</b><br/>
+                    ✦ 無 Danbooru 標籤、無權重符號，適合 <b style={{color:"#a78bfa"}}>Veo 3.1 / Nano Banana Pro</b><br/>
+                    ✦ 每組含：場景描述 + 角色動作 + 鏡頭運動 + 光影情緒，約 80-120 字<br/>
+                    ✦ 場景末附「<b style={{color:"#22d3ee"}}>📋 複製並開啟 Flow</b>」一鍵跳轉
+                  </div>
+                </div>
+              )}
               {/* 文生圖模式 - 輸入區 */}
               {showStoryboard && storyboardMode==="image" && (
                 <div style={{padding:"12px 16px",background:"rgba(167,139,250,0.04)",borderBottom:"1px solid #a78bfa22",display:"flex",flexDirection:"column",gap:8}}>
@@ -2291,6 +2366,12 @@ async function doUnlock(isAutoLogin = false) {
               {showStoryboard && storyboardMode==="video" && !storyboardResult && !isGenStoryboard && (
                 <div style={{padding:"10px 16px",fontSize:11,color:"var(--subtext)"}}>
                   將根據目前提示詞生成 <b style={{color:"#22d3ee"}}>KlingAI</b> 和 <b style={{color:"#50c070"}}>Hailuo</b> 兩種影片分鏡格式
+                </div>
+              )}
+              {/* Flow 模式提示 */}
+              {showStoryboard && storyboardMode==="flow" && !storyboardResult && !isGenStoryboard && (
+                <div style={{padding:"10px 16px",fontSize:11,color:"var(--subtext)"}}>
+                  生成適合 <b style={{color:"#a78bfa"}}>Google Flow</b> 的自然語言分鏡描述，每組約 80-120 字，支援直接開啟 flow.google 貼上
                 </div>
               )}
 
@@ -2425,6 +2506,66 @@ async function doUnlock(isAutoLogin = false) {
                               {isComfyGenerating ? "⏳ 算圖中..." : "點擊直接生成此場景"}
                             </span>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Flow 格式分鏡結果 */}
+                  {storyboardResult.mode==="flow" && storyboardResult.scenes && (
+                    <div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
+                        <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🌊 Google Flow 分鏡 — {storyboardResult.scenes.length} 組</span>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={translateAllScenes} disabled={translatingScene!==null}
+                            style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
+                              background:"rgba(34,211,238,0.1)",border:"1px solid #22d3ee"+(translatingScene!==null?"":"88"),color:translatingScene!==null?"#22d3ee":"#22d3ee99"}}>
+                            {translatingScene!==null?"⏳ 翻譯中...":"🌐 全部翻譯中文"}
+                          </button>
+                          <button onClick={()=>{
+                              const all = storyboardResult.scenes.map((s,idx2)=>"[Scene "+(idx2+1)+"]\n"+s).join("\n\n");
+                              navigator.clipboard.writeText(all);
+                            }} style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
+                            📋 複製全部
+                          </button>
+                          <button onClick={()=>window.open("https://flow.google","_blank")}
+                            style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.25)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
+                            🌊 開啟 Flow
+                          </button>
+                        </div>
+                      </div>
+                      {storyboardResult.scenes.map((scene,i)=>(
+                        <div key={i} style={{border:"1px solid #a78bfa44",borderRadius:10,overflow:"hidden",marginBottom:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:"rgba(167,139,250,0.12)",borderBottom:"1px solid #a78bfa22"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🌊 Scene {i+1}</span>
+                              <span style={{fontSize:10,color:"#a78bfa66"}}>/ {storyboardResult.scenes.length}</span>
+                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>中文✓</span>}
+                            </div>
+                            <div style={{display:"flex",gap:5}}>
+                              <button onClick={()=>translateScene(scene,i)} disabled={translatingScene!==null}
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene===i?"wait":"pointer",
+                                  background:sceneTranslations[i]?"rgba(34,211,238,0.18)":"rgba(34,211,238,0.08)",
+                                  border:"1px solid #22d3ee"+(sceneTranslations[i]?"":"66"),color:sceneTranslations[i]?"#22d3ee":"#22d3ee88"}}>
+                                {translatingScene===i?"⏳":"🌐 譯ZH"}
+                              </button>
+                              {sceneTranslations[i] && <button onClick={()=>navigator.clipboard.writeText(sceneTranslations[i])}
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee",color:"#22d3ee"}}>📋 ZH</button>}
+                              <button onClick={()=>navigator.clipboard.writeText(scene)}
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #a78bfa55",color:"#a78bfa99"}}>📋 EN</button>
+                              <button onClick={()=>{ navigator.clipboard.writeText(scene); window.open("https://flow.google","_blank"); }}
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.25)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
+                                🌊 複製+開Flow
+                              </button>
+                            </div>
+                          </div>
+                          <div style={{padding:"12px 14px",fontSize:12,color:"var(--text)",lineHeight:1.9}}>{scene}</div>
+                          {sceneTranslations[i] && (
+                            <div style={{padding:"10px 14px",background:"rgba(34,211,238,0.05)",borderTop:"1px solid #22d3ee22"}}>
+                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 中文翻譯</div>
+                              <div style={{fontSize:12,color:"var(--text)",lineHeight:1.8}}>{sceneTranslations[i]}</div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
