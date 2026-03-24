@@ -420,6 +420,35 @@ async function doUnlock(isAutoLogin = false) {
         else onSendComfy(customPos, negText);
       };
 
+      // ZH 中文直送（RunningHub / ComfyUI 支援中文）
+      const handleSendZH = () => {
+        const zhSrc = customZh.trim();
+        if (!zhSrc) return alert("中文欄位為空！請先使用「✨ AI優化Prompt」產生中文翻譯");
+        const negText = customNeg.trim() || (negPrompt && (negPrompt.en || negPrompt.zh)) || "";
+        if (isRunningHubMode) onSendRH(zhSrc);
+        else onSendComfy(zhSrc, negText);
+      };
+
+      // 翻譯EN→ZH（不優化，僅翻譯）
+      const [isTranslating, setIsTranslating] = React.useState(false);
+      const handleTranslateZH = async () => {
+        const src = customPos.trim() || currentPromptEN;
+        if (!src) return alert("請先在 EN 欄位輸入提示詞！");
+        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        setIsTranslating(true);
+        try {
+          const tPrompt = "Translate the following AI image prompt into fluent Traditional Chinese." +
+            "\nKeep ALL details exactly. Natural Chinese phrasing. Output ONLY the Chinese text, no explanation." +
+            "\n\nPrompt:\n" + src;
+          const result = await callGeminiWithRetry(cloudApiKey, tPrompt, 8192);
+          setCustomZh(result.trim());
+        } catch(e) {
+          alert("❌ 翻譯失敗：" + e.message);
+        } finally {
+          setIsTranslating(false);
+        }
+      };
+
       const handleCopyPos = () => {
         if (!customPos.trim()) return;
         navigator.clipboard.writeText(customPos);
@@ -458,31 +487,48 @@ async function doUnlock(isAutoLogin = false) {
         setIsOpen(true);
         setOptimizeStatus("✨ AI 優化中，請稍候...");
         try {
-          const systemPrompt = "You are an expert Stable Diffusion / AI image generation prompt engineer." +
-            "\nYour task: Take the input prompt and return TWO optimized versions." +
-            "\nRules:" +
-            "\n- Keep all key visual elements, characters, outfits, poses, and scene descriptions" +
-            "\n- Improve token ordering: quality tags first, then subject, then details, then style" +
-            "\n- Add missing photography/quality tokens if beneficial" +
-            "\n- Strengthen weak descriptors with more precise visual language" +
-            "\nOUTPUT FORMAT (STRICT — do not deviate):" +
-            "\n[EN]" +
-            "\nThe optimized English prompt here (comma-separated tags, no line breaks)" +
-            "\n[ZH]" +
-            "\nThe optimized Traditional Chinese prompt here (natural description style, no line breaks)" +
-            "\nOutput ONLY these two sections. No explanations, no markdown, no extra text."
+          const systemPrompt = "You are a professional AI image prompt engineer. Your job:" +
+            "\n\n[STEP 1 — OUTPUT ===ZH=== FIRST]" +
+            "\nTranslate the input prompt into fluent Traditional Chinese." +
+            "\nKeep ALL details. Natural Chinese phrasing. Complete — never cut off." +
+            "\n\n[STEP 2 — OUTPUT ===EN===]" +
+            "\nOptimize the English prompt for better image generation quality." +
+            "\nSTRICT LOCKED (never change): character face/hair/body, outfit, pose, scene, color grade" +
+            "\nALLOWED: fix token order, strengthen adjectives, add technical photography terms, remove duplicates" +
+            "\n\nOUTPUT FORMAT (exactly these markers, ZH FIRST then EN):" +
+            "\n===ZH===" +
+            "\n(Traditional Chinese translation — complete, no line breaks)" +
+            "\n===EN===" +
+            "\n(optimized English prompt — complete, no line breaks)"
 
                     setOptimizeStatus("✨ AI 優化中（第1次請求，最多重試3次）...");
-          const optimized = await callGeminiWithRetry(cloudApiKey, systemPrompt + "\n\nInput prompt:\n" + sourcePrompt, 4096);
+          const optimized = await callGeminiWithRetry(cloudApiKey, systemPrompt + "\n\nInput prompt:\n" + sourcePrompt, 8192);
 
-          // Parse EN and ZH sections
-          const enMatch = optimized.match(/\[EN\]([\s\S]*?)(?=\[ZH\]|$)/i);
-          const zhMatch = optimized.match(/\[ZH\]([\s\S]*?)$/i);
-          const enText = enMatch ? enMatch[1].trim() : optimized;
-          const zhText = zhMatch ? zhMatch[1].trim() : "";
+          // Parse EN/ZH sections — string split approach (most reliable)
+          let enText = "", zhText = "";
+          const raw = optimized || "";
+          if (raw.includes("===ZH===")) {
+            const parts = raw.split("===ZH===");
+            zhText = parts[1] ? parts[1].trim() : "";
+            const enPart = parts[0];
+            enText = enPart.includes("===EN===")
+              ? enPart.split("===EN===")[1].trim()
+              : enPart.trim();
+          } else if (raw.includes("===EN===")) {
+            enText = raw.split("===EN===")[1].trim();
+          } else if (raw.includes("[ZH]")) {
+            const parts = raw.split("[ZH]");
+            zhText = parts[1] ? parts[1].trim() : "";
+            const enPart = parts[0];
+            enText = enPart.includes("[EN]") ? enPart.split("[EN]")[1].trim() : enPart.trim();
+          } else {
+            enText = raw.trim();
+          }
+          if (!enText) enText = raw.trim();
           setCustomPos(enText);
-          if (zhText) setCustomZh(zhText);
-          setOptimizeStatus("✅ 優化完成！EN + ZH 雙語版本已填入");
+          setCustomZh(zhText || "（AI 未回傳中文翻譯）");
+          const zhStatus = zhText ? " + ZH 中文翻譯已填入" : "（ZH未回傳，可手動填）";
+          setOptimizeStatus("✅ 優化完成！EN" + zhStatus);
           setTimeout(() => setOptimizeStatus(""), 4000);
         } catch(e) {
           setOptimizeStatus(`❌ 優化失敗：${e.message}`);
@@ -560,9 +606,17 @@ async function doUnlock(isAutoLogin = false) {
                 </div>
                 {/* ZH 欄位 */}
                 <div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>ZH（中文 · 參考用）</span>
-                    <button onClick={()=>setCustomZh("")} style={{fontSize:9,padding:"1px 7px",background:"transparent",border:("1px solid var(--border)"),color:"var(--subtext)",borderRadius:4,cursor:"pointer"}}>清除</button>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:4}}>
+                    <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>ZH（中文 · 可直送 RunningHub / ComfyUI）</span>
+                    <div style={{display:"flex",gap:5}}>
+                      <button
+                        onClick={handleTranslateZH}
+                        disabled={isTranslating}
+                        style={{fontSize:9,padding:"2px 8px",background:isTranslating?"rgba(34,211,238,0.15)":"transparent",
+                          border:"1px solid #22d3ee"+(isTranslating?"":"88"),color:isTranslating?"#22d3ee":"#22d3ee99",borderRadius:4,cursor:isTranslating?"wait":"pointer",fontWeight:700}}
+                      >{isTranslating?"⏳ 翻譯中...":"🌐 翻譯EN→ZH"}</button>
+                      <button onClick={()=>setCustomZh("")} style={{fontSize:9,padding:"2px 7px",background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:4,cursor:"pointer"}}>清除</button>
+                    </div>
                   </div>
                   <textarea
                     value={customZh}
@@ -597,15 +651,30 @@ async function doUnlock(isAutoLogin = false) {
                   />
                 </div>
               )}
-              <div style={{display:"flex", gap:8, justifyContent:"flex-end"}}>
+              <div style={{display:"flex", gap:8, justifyContent:"flex-end", flexWrap:"wrap"}}>
                 <button
                   onClick={() => { setCustomPos(""); setCustomZh(""); setCustomNeg(""); }}
-                  style={{padding:"6px 14px", background:"transparent", border:`1px solid var(--border)`, color:"var(--subtext)", borderRadius:7, fontSize:12, cursor:"pointer"}}
+                  style={{padding:"6px 14px", background:"transparent", border:"1px solid var(--border)", color:"var(--subtext)", borderRadius:7, fontSize:12, cursor:"pointer"}}
                 >清除</button>
+                {/* ZH中文直送按鈕（僅 RunningHub / ComfyUI 支援）*/}
+                {!isCloudMode && (
+                  <button
+                    onClick={handleSendZH}
+                    disabled={isComfyGenerating || !customZh.trim()}
+                    title="用中文提示詞直送（Z_image / ComfyUI 支援中文）"
+                    style={{padding:"8px 16px",
+                      background: customZh.trim() ? "rgba(34,211,238,0.12)" : "transparent",
+                      border: "1.5px solid " + (customZh.trim() ? "#22d3ee" : "#22d3ee44"),
+                      color: customZh.trim() ? "#22d3ee" : "#22d3ee55",
+                      borderRadius:7, fontSize:12, fontWeight:"bold",
+                      cursor: (isComfyGenerating || !customZh.trim()) ? "not-allowed" : "pointer",
+                      opacity: isComfyGenerating ? 0.6 : 1}}
+                  >{isRunningHubMode ? "⚡ 中文送 RunningHub" : "🚀 中文送 ComfyUI"}</button>
+                )}
                 <button
                   onClick={handleSend}
                   disabled={isComfyGenerating}
-                  style={{padding:"8px 20px", background:`${acColor}22`, border:`1.5px solid ${acColor}`, color:acColor, borderRadius:7, fontSize:13, fontWeight:"bold", cursor:isComfyGenerating?"not-allowed":"pointer", opacity:isComfyGenerating?0.6:1}}
+                  style={{padding:"8px 20px", background:(acColor+"22"), border:("1.5px solid "+acColor), color:acColor, borderRadius:7, fontSize:13, fontWeight:"bold", cursor:isComfyGenerating?"not-allowed":"pointer", opacity:isComfyGenerating?0.6:1}}
                 >{btnLabel}</button>
               </div>
             </div>
@@ -627,7 +696,7 @@ async function doUnlock(isAutoLogin = false) {
           const sysP = "You are an expert AI image generation prompt engineer." +
             "\nOptimize the input prompt for better image quality. Keep all key details." +
             "\nReturn ONLY the optimized prompt, no explanations.";
-          const optimized = await callGeminiWithRetry(cloudApiKey, sysP + "\n\nPrompt:\n" + txt, 4096);
+          const optimized = await callGeminiWithRetry(cloudApiKey, sysP + "\n\nPrompt:\n" + txt, 8192);
           window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(optimized);
           alert("✅ AI 優化完成！已填入自訂提示詞欄位");
         } catch(e) {
@@ -760,6 +829,41 @@ async function doUnlock(isAutoLogin = false) {
       const [showStoryboard, setShowStoryboard] = useState(false);
       const [isGenStoryboard, setIsGenStoryboard] = useState(false);
       const [storyboardResult, setStoryboardResult] = useState(null);
+      const [sceneTranslations, setSceneTranslations] = useState({});  // {index: "zh text"}
+      const [translatingScene, setTranslatingScene] = useState(null);  // index being translated
+
+      const translateScene = async (scene, i) => {
+        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        setTranslatingScene(i);
+        try {
+          const tp = "Translate this AI image storyboard prompt into fluent Traditional Chinese." +
+            "\nKeep ALL visual details exactly. Natural Chinese. Output ONLY the Chinese text." +
+            "\n\nPrompt:\n" + scene;
+          const zh = await callGeminiWithRetry(cloudApiKey, tp, 4096);
+          setSceneTranslations(prev => ({...prev, [i]: zh.trim()}));
+        } catch(e) {
+          alert("❌ 翻譯失敗：" + e.message);
+        } finally {
+          setTranslatingScene(null);
+        }
+      };
+
+      const translateAllScenes = async () => {
+        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (!storyboardResult || !storyboardResult.scenes) return;
+        for (let i = 0; i < storyboardResult.scenes.length; i++) {
+          if (sceneTranslations[i]) continue; // skip already translated
+          setTranslatingScene(i);
+          try {
+            const tp = "Translate this AI image storyboard prompt into fluent Traditional Chinese." +
+              "\nKeep ALL visual details exactly. Natural Chinese. Output ONLY the Chinese text." +
+              "\n\nPrompt:\n" + storyboardResult.scenes[i];
+            const zh = await callGeminiWithRetry(cloudApiKey, tp, 4096);
+            setSceneTranslations(prev => ({...prev, [i]: zh.trim()}));
+          } catch(e) { break; }
+        }
+        setTranslatingScene(null);
+      };
       const [storyboardMode, setStoryboardMode] = useState("video");   // "video" | "image"
       const [storyboardOutline, setStoryboardOutline] = useState("");  // 內容大綱輸入
       const [storyboardCount, setStoryboardCount] = useState(8);       // 生成組數
@@ -882,7 +986,7 @@ async function doUnlock(isAutoLogin = false) {
         if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
         setIsGenStoryboard(true);
         setShowStoryboard(true);
-        setStoryboardResult(null);
+        setStoryboardResult(null); setSceneTranslations({});
         try {
           if (storyboardMode === "video") {
             // ── 影片分鏡模式（原功能）──
@@ -2220,23 +2324,107 @@ async function doUnlock(isAutoLogin = false) {
                     <div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                         <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🖼 文生圖分鏡 — {storyboardResult.scenes.length} 組</span>
-                        <button onClick={()=>{
-                          const all = storyboardResult.scenes.map((s,i)=>"Next Scene:\n"+s).join("\n\n---\n\n");
-                          navigator.clipboard.writeText(all);
-                        }} style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>📋 複製全部</button>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>{
+                            const all = storyboardResult.scenes.map((s,i)=>"Next Scene:\n"+s).join("\n\n---\n\n");
+                            navigator.clipboard.writeText(all);
+                          }} style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>📋 複製全部</button>
+                          <button onClick={translateAllScenes}
+                            disabled={translatingScene !== null}
+                            style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
+                              background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee"+(translatingScene!==null?"":"88"),color:translatingScene!==null?"#22d3ee":"#22d3ee99"}}>
+                            {translatingScene !== null ? "⏳ 翻譯中..." : "🌐 全部翻譯中文"}
+                          </button>
+                        </div>
                       </div>
                       {storyboardResult.scenes.map((scene,i)=>(
-                        <div key={i} style={{border:"1px solid #a78bfa33",borderRadius:8,overflow:"hidden",marginBottom:10}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",background:"rgba(167,139,250,0.1)"}}>
-                            <span style={{fontSize:11,color:"#a78bfa",fontWeight:700}}>Scene {i+1} / {storyboardResult.scenes.length}</span>
-                            <div style={{display:"flex",gap:6}}>
-                              <button onClick={()=>navigator.clipboard.writeText("Next Scene:\n"+scene)}
-                                style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #a78bfa66",color:"#a78bfa"}}>📋</button>
-                              <button onClick={()=>{navigator.clipboard.writeText("Next Scene:\n"+scene); window.__OPS_FILL_CUSTOM_PROMPT&&window.__OPS_FILL_CUSTOM_PROMPT("Next Scene:\n"+scene);}}
-                                style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.22)",border:"1px solid #a78bfa",color:"#a78bfa"}}>→ 自訂欄</button>
+                        <div key={i} style={{border:"1px solid #a78bfa44",borderRadius:10,overflow:"hidden",marginBottom:12,boxShadow:"0 2px 8px rgba(167,139,250,0.08)"}}>
+                          {/* Scene 標題列 */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:"rgba(167,139,250,0.12)",borderBottom:"1px solid #a78bfa22"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🎬 Scene {i+1}</span>
+                              <span style={{fontSize:10,color:"#a78bfa66"}}>/ {storyboardResult.scenes.length}</span>
+                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>中文✓</span>}
+                            </div>
+                            {/* 操作按鈕 */}
+                            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                              <button onClick={()=>navigator.clipboard.writeText(scene)}
+                                title="複製英文 Prompt"
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #a78bfa55",color:"#a78bfa99"}}>
+                                📋 EN
+                              </button>
+                              <button onClick={()=>translateScene(scene, i)}
+                                disabled={translatingScene !== null}
+                                title="翻譯此場景為中文"
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,
+                                  cursor:translatingScene===i?"wait":translatingScene!==null?"not-allowed":"pointer",
+                                  background:sceneTranslations[i]?"rgba(34,211,238,0.18)":"rgba(34,211,238,0.08)",
+                                  border:"1px solid #22d3ee"+(sceneTranslations[i]?"":"66"),
+                                  color:sceneTranslations[i]?"#22d3ee":"#22d3ee88"}}>
+                                {translatingScene===i ? "⏳" : "🌐 譯ZH"}
+                              </button>
+                              {sceneTranslations[i] && (
+                                <button onClick={()=>navigator.clipboard.writeText(sceneTranslations[i])}
+                                  title="複製中文翻譯"
+                                  style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee",color:"#22d3ee"}}>
+                                  📋 ZH
+                                </button>
+                              )}
+                              <button onClick={()=>{
+                                  window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(scene);
+                                  navigator.clipboard.writeText(scene);
+                                }}
+                                title="填入自訂欄送出算圖"
+                                style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.18)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
+                                ✏️ 填入自訂欄
+                              </button>
                             </div>
                           </div>
-                          <div style={{padding:"10px 12px",fontSize:12,color:"var(--text)",fontFamily:"monospace",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{scene}</div>
+                          {/* Prompt 內文 */}
+                          <div style={{padding:"12px 14px",fontSize:12,color:"var(--text)",fontFamily:"monospace",lineHeight:1.9,whiteSpace:"pre-wrap"}}>{scene}</div>
+                          {/* ZH 中文翻譯區塊 */}
+                          {sceneTranslations[i] && (
+                            <div style={{padding:"10px 14px",background:"rgba(34,211,238,0.05)",borderTop:"1px solid #22d3ee22"}}>
+                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 中文翻譯</div>
+                              <div style={{fontSize:12,color:"var(--text)",lineHeight:1.8,fontFamily:"sans-serif"}}>{sceneTranslations[i]}</div>
+                            </div>
+                          )}
+                          {/* 直送按鈕列 */}
+                          <div style={{padding:"8px 14px",background:"rgba(167,139,250,0.05)",borderTop:"1px solid #a78bfa18",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                            <span style={{fontSize:10,color:"#a78bfa77",marginRight:2}}>直送算圖：</span>
+                            {isRunningHubMode && (
+                              <button
+                                onClick={()=>{ handleRunningHubSend(scene); }}
+                                disabled={isComfyGenerating}
+                                title="直接用此分鏡 Prompt 送至 RunningHub 算圖"
+                                style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isComfyGenerating?"not-allowed":"pointer",
+                                  background:"rgba(201,168,76,0.15)",border:"1px solid #c9a84c",color:"#c9a84c"}}>
+                                ⚡ RunningHub
+                              </button>
+                            )}
+                            {!isRunningHubMode && !isCloudMode && (
+                              <button
+                                onClick={()=>{ handleComfySend(scene, ""); }}
+                                disabled={isComfyGenerating}
+                                title="直接用此分鏡 Prompt 送至本地 ComfyUI 算圖"
+                                style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isComfyGenerating?"not-allowed":"pointer",
+                                  background:"rgba(80,200,100,0.15)",border:"1px solid #50c070",color:"#50c070"}}>
+                                🚀 ComfyUI
+                              </button>
+                            )}
+                            {isCloudMode && (
+                              <button
+                                onClick={()=>{ handleCloudGenerate(scene); }}
+                                title="直接用此分鏡 Prompt 送至 Gemini Imagen 算圖"
+                                style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:"pointer",
+                                  background:"rgba(99,179,237,0.15)",border:"1px solid #63b3ed",color:"#63b3ed"}}>
+                                ☁️ Imagen
+                              </button>
+                            )}
+                            <span style={{fontSize:9,color:"#a78bfa44",marginLeft:"auto"}}>
+                              {isComfyGenerating ? "⏳ 算圖中..." : "點擊直接生成此場景"}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
