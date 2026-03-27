@@ -220,6 +220,9 @@ async function doUnlock(isAutoLogin = false) {
   window.launchOPSApp = function() {
     const { useState, useEffect, useRef } = React;
 
+    // ── Module-level language variable (readable by all sub-components) ──
+    let _lang = localStorage.getItem("ops_ui_lang") || "zh";
+
     const DB = window.OPS_DB || {};
     const MAKEUP_DB = DB.MAKEUP || []; const FABRIC_DB = DB.FABRIC || []; const BOTTOM_DB = DB.BOTTOM || [];
     const LIGHT_DB = DB.LIGHT || []; const ACC_DB = DB.ACC || []; const ACC_GROUPS = DB.ACC_GROUPS || [];
@@ -233,7 +236,7 @@ async function doUnlock(isAutoLogin = false) {
 
     const darkPalette = { orange:"#ff6b35", cyan:"#00d4ff", pink:"#ff85c2", purple:"#a855f7", yellow:"#ffd700", green:"#00ff95", red:"#ff3d6e", rose:"#f43f5e", cloud:"#3b82f6" };
     const lightPalette = { orange:"#D95D00", cyan:"#0284C7", pink:"#D91E74", purple:"#7C3AED", yellow:"#B45309", green:"#059669", red:"#DC2626", rose:"#E11D48", cloud:"#2563EB" };
-    const THEMES = { dark: { name: "🌙 經典暗黑", bg: "#0a0a0a", text: "#ccc", subtext: "#888", card: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)", inputBg: "rgba(255,255,255,0.04)", promptBg: "rgba(0,0,0,0.3)", palette: darkPalette }, light: { name: "☀️ 日間模式", bg: "#F3F4F6", text: "#111827", subtext: "#4B5563", card: "#FFFFFF", border: "#D1D5DB", inputBg: "#F9FAFB", promptBg: "#F3F4F6", palette: lightPalette }, cyberpunk: { name: "🎸 賽博龐克", bg: "#0d0208", text: "#fecdd3", subtext: "#fda4af", card: "rgba(255,0,85,0.05)", border: "rgba(255,0,85,0.3)", inputBg: "rgba(255,0,85,0.08)", promptBg: "rgba(0,0,0,0.4)", palette: darkPalette } };
+    const THEMES = { dark: { name: "🌙 Dark", bg: "#0a0a0a", text: "#ccc", subtext: "#888", card: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)", inputBg: "rgba(255,255,255,0.04)", promptBg: "rgba(0,0,0,0.3)", palette: darkPalette }, light: { name: "☀️ Light", bg: "#F3F4F6", text: "#111827", subtext: "#4B5563", card: "#FFFFFF", border: "#D1D5DB", inputBg: "#F9FAFB", promptBg: "#F3F4F6", palette: lightPalette }, cyberpunk: { name: "🎸 Cyberpunk", bg: "#0d0208", text: "#fecdd3", subtext: "#fda4af", card: "rgba(255,0,85,0.05)", border: "rgba(255,0,85,0.3)", inputBg: "rgba(255,0,85,0.08)", promptBg: "rgba(0,0,0,0.4)", palette: darkPalette } };
 
     const GEMINI_BASE = [ { id: "gb1", label: "專業人像攝影", zh: "專業人像攝影", en: "Professional portrait photography" }, { id: "gb2", label: "自然光", zh: "自然光", en: "Natural light" }, { id: "gb3", label: "人物光", zh: "人物光", en: "Character light" }, { id: "gb4", label: "全身", zh: "全身", en: "Full body shot" }, { id: "gb5", label: "半身", zh: "半身", en: "Half body shot" }, { id: "gb6", label: "大頭照", zh: "大頭照", en: "Close-up headshot" } ];
     const GEMINI_LENS = [ { id: "gl1", label: "超廣角 14-24mm", zh: "超廣角 14-24mm:誇張視角與透視變形,強調前景,背景廣闊", en: "Ultra wide-angle 14-24mm: exaggerated perspective and distortion, emphasizes foreground, broad background" }, { id: "gl2", label: "廣角 24-35mm", zh: "廣角(Wide)24-35mm包含環境,輕微透視感,動態構圖", en: "Wide-angle 24-35mm: includes environment, slight perspective, dynamic composition" }, { id: "gl3", label: "標準 35-50mm", zh: "標準 (Standard) 35-50mm接近人眼視角,真實自然,適合紀實與半身肖像", en: "Standard 35-50mm: close to human eye perspective, real and natural, suitable for documentary and half-body portraits" }, { id: "gl4", label: "中焦 85mm", zh: "中焦 (Medium Telephoto)人像攝影黃金焦段,壓縮背景,突出主體,虚化柔和", en: "Medium Telephoto 85mm: golden focal length for portraits, compresses background, highlights subject, soft bokeh" }, { id: "gl5", label: "長焦 135mm+", zh: "長焦(135mm+)極致壓縮,背景完全虚化,聚焦面部細部與情感", en: "Telephoto 135mm+: extreme compression, completely blurred background, focuses on facial details and emotions" } ];
@@ -269,8 +272,8 @@ async function doUnlock(isAutoLogin = false) {
       return added.length === 0 ? basePrompt : basePrompt + sep + added.join(sep);
     }
     function Btn({children, onClick, disabled, style={}, color}) { return <button onClick={onClick} disabled={disabled} style={{background:`${color}18`,border:`1px solid ${color}`,color:color,padding:"5px 12px",borderRadius:7,fontSize:12,cursor:disabled?"not-allowed":"pointer",fontWeight:700,opacity:disabled?0.5:1,transition:"all 0.2s",...style}}>{children}</button>; }
-    function SelBtn({item, selected, onSelect, color}) { const sel = selected === item.id; return <button onClick={()=>onSelect(item.id)} title={item.en||""} style={{background:sel?`${color}22`:"var(--card)", border:`1px solid ${sel?color:"var(--border)"}`, color:sel?color:"var(--text)", padding:"4px 9px", borderRadius:13, fontSize:11, cursor:"pointer", fontWeight:sel?700:400}}>{sel?"✓ ":""}{item.label}</button>; }
-    function DropSelect({ items, value, onChange, accent, placeholder = "── 請選擇 ──" }) {
+    function SelBtn({item, selected, onSelect, color}) { const sel = selected === item.id; const lbl = (_lang==="en" && item.en) ? item.en.replace(/^\(+/,"").split(/[:,]/)[0].trim() : item.label; return <button onClick={()=>onSelect(item.id)} title={_lang==="en"?(item.en||item.label):(item.zh||item.label)} style={{background:sel?`${color}22`:"var(--card)", border:`1px solid ${sel?color:"var(--border)"}`, color:sel?color:"var(--text)", padding:"4px 9px", borderRadius:13, fontSize:11, cursor:"pointer", fontWeight:sel?700:400}}>{sel?"✓ ":""}{lbl}</button>; }
+    function DropSelect({ items, value, onChange, accent, placeholder }) {
       const [q, setQ] = React.useState("");
       const [open, setOpen] = React.useState(false);
       const ref = React.useRef(null);
@@ -305,7 +308,7 @@ async function doUnlock(isAutoLogin = false) {
               value={open ? q : (selected ? selected.label : "")}
               onChange={e => { setQ(e.target.value); setOpen(true); }}
               onFocus={() => setOpen(true)}
-              placeholder={open ? "輸入關鍵字篩選..." : placeholder}
+              placeholder={open ? _lang==="zh"?"輸入關鍵字篩選...":"Type to filter..." : placeholder}
               style={{flex:1,padding:"8px 10px",background:"transparent",border:"none",outline:"none",color:value?accent:"var(--text)",fontSize:13,cursor:"text",minWidth:0}}
             />
             <span style={{padding:"0 10px",color:"var(--subtext)",fontSize:11,flexShrink:0}}>{open?"▲":"▼"}</span>
@@ -318,7 +321,7 @@ async function doUnlock(isAutoLogin = false) {
                 style={{padding:"8px 12px",color:"var(--subtext)",fontSize:12,cursor:"pointer",borderBottom:"1px solid var(--border)"}}
               >{placeholder}</div>
               {filtered.length === 0
-                ? <div style={{padding:"10px 12px",color:"var(--subtext)",fontSize:11}}>無符合「{q}」的結果</div>
+                ? <div style={{padding:"10px 12px",color:"var(--subtext)",fontSize:11}}>{_lang==="zh"?`無符合「${q}」的結果`:`No match: "${q}"`}</div>
                 : filtered.map(item => (
                   <div
                     key={item.id}
@@ -331,7 +334,7 @@ async function doUnlock(isAutoLogin = false) {
                       lineHeight:1.4
                     }}
                   >
-                    <span style={{fontWeight:600}}>{item.label}</span>
+                    <span style={{fontWeight:600}}>{(_lang==="en" && item.en) ? (item.en.replace(/^\(+/,"").split(/[:,]/)[0].trim()) : item.label}</span>
                     {q.trim() && item.zh && <span style={{fontSize:10,color:"var(--subtext)",marginLeft:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:200,display:"inline-block",verticalAlign:"middle"}}>{item.zh.substring(0,40)}{item.zh.length>40?"...":""}</span>}
                   </div>
                 ))
@@ -340,7 +343,7 @@ async function doUnlock(isAutoLogin = false) {
           )}
           {/* 已選標籤 */}
           {selected && !open && (
-            <div className="ops-selected-badge" style={{background:(accent+"0f"),border:("1px solid "+accent+"25"),color:(accent+"bb")}}>{selected.zh || selected.en || selected.label}</div>
+            <div className="ops-selected-badge" style={{background:(accent+"0f"),border:("1px solid "+accent+"25"),color:(accent+"bb")}}>{(_lang==="en" && (selected.en||selected.label)) ? (selected.en||selected.label).split(":")[0].trim() : (selected.zh || selected.label)}</div>
           )}
         </div>
       );
@@ -416,14 +419,14 @@ async function doUnlock(isAutoLogin = false) {
               setCustomPos(typeof payload === "string" ? payload : "");
             }
             setIsOpen(true);
-            setOptimizeStatus("✅ 已填入 POSITIVE 欄位");
+            setOptimizeStatus(_lang==="zh"?"✅ 已填入 POSITIVE 欄位":"✅ Filled into POSITIVE");
             setTimeout(() => setOptimizeStatus(""), 3000);
           };
         }
       }, [fillRef]);
 
       const acColor = isCloudMode ? C.cloud : isRunningHubMode ? C.rhGold : C.green;
-      const btnLabel = isComfyGenerating ? "⏳ 算圖中..." : isCloudMode ? "☁️ 雲端 Imagen 送出" : isRunningHubMode ? "⚡ 送至 RunningHub" : "🚀 送至 ComfyUI";
+      const btnLabel = isComfyGenerating ? _lang==="zh"?_lang==="zh"?"⏳ 算圖中...":"⏳ Generating...":"⏳ Generating..." : isCloudMode ? _lang==="zh"?"☁️ 雲端 Imagen 送出":"☁️ Cloud Imagen" : isRunningHubMode ? _lang==="zh"?"⚡ 送至 RunningHub":"⚡ Send to RH" : _lang==="zh"?"🚀 送至 ComfyUI":"🚀 Send to ComfyUI";
 
       const handleSend = () => {
         if (!customPos.trim()) return alert("請輸入提示詞！");
@@ -436,7 +439,7 @@ async function doUnlock(isAutoLogin = false) {
       // ZH 中文直送（RunningHub / ComfyUI 支援中文）
       const handleSendZH = () => {
         const zhSrc = customZh.trim();
-        if (!zhSrc) return alert("中文欄位為空！請先使用「✨ AI優化Prompt」產生中文翻譯");
+        if (!zhSrc) return alert("ZH field empty — use AI Optimize or Translate first");
         const negText = customNeg.trim() || (negPrompt && (negPrompt.en || negPrompt.zh)) || "";
         if (isRunningHubMode) onSendRH(zhSrc);
         else onSendComfy(zhSrc, negText);
@@ -446,8 +449,8 @@ async function doUnlock(isAutoLogin = false) {
       const [isTranslating, setIsTranslating] = React.useState(false);
       const handleTranslateZH = async () => {
         const src = customPos.trim() || currentPromptEN;
-        if (!src) return alert("請先在 EN 欄位輸入提示詞！");
-        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (!src) return alert(_lang==="zh"?"請先在 EN 欄位輸入提示詞！":"Please enter a prompt in the EN field!");
+        if (!cloudApiKey) return alert(_lang==="zh"?"請先填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         setIsTranslating(true);
         try {
           const tPrompt = "Translate the following AI image prompt into fluent Traditional Chinese." +
@@ -456,7 +459,7 @@ async function doUnlock(isAutoLogin = false) {
           const result = await callGeminiWithRetry(cloudApiKey, tPrompt, 8192);
           setCustomZh(result.trim());
         } catch(e) {
-          alert("❌ 翻譯失敗：" + e.message);
+          alert(_lang==="zh"?"❌ 翻譯失敗：":"❌ Translation failed: " + e.message);
         } finally {
           setIsTranslating(false);
         }
@@ -480,10 +483,10 @@ async function doUnlock(isAutoLogin = false) {
       const handlePasteFromClipboard = async () => {
         try {
           const text = await navigator.clipboard.readText();
-          if (!text.trim()) return setOptimizeStatus("⚠️ 剪貼簿是空的");
+          if (!text.trim()) return setOptimizeStatus(_lang==="zh"?"⚠️ 剪貼簿是空的":"⚠️ Clipboard is empty");
           setCustomPos(text.trim());
           setIsOpen(true);
-          setOptimizeStatus("✅ 已從剪貼簿貼入 POSITIVE");
+          setOptimizeStatus(_lang==="zh"?"✅ 已從剪貼簿貼入 POSITIVE":"✅ Pasted from clipboard");
           setTimeout(() => setOptimizeStatus(""), 3000);
         } catch(e) {
           setOptimizeStatus("❌ 無法讀取剪貼簿，請手動貼上");
@@ -494,11 +497,11 @@ async function doUnlock(isAutoLogin = false) {
       // ── 方案B：呼叫 Gemini API 優化 Prompt ──
       const handleAIOptimize = async () => {
         const sourcePrompt = customPos.trim() || currentPromptEN;
-        if (!sourcePrompt) return alert("請先生成提示詞或在 POSITIVE 欄位輸入內容！");
-        if (!cloudApiKey) return alert("請先在設定中填入 Google AI Studio API Key！");
+        if (!sourcePrompt) return alert(_lang==="zh"?"請先生成提示詞或在 POSITIVE 欄位輸入內容！":"Please generate a prompt or fill the POSITIVE field!");
+        if (!cloudApiKey) return alert(_lang==="zh"?"請先在設定中填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key in settings!");
         setIsOptimizing(true);
         setIsOpen(true);
-        setOptimizeStatus("✨ AI 優化中，請稍候...");
+        setOptimizeStatus(_lang==="zh"?"✨ AI 優化中，請稍候...":"✨ AI optimizing...");
         try {
           const systemPrompt = "You are a professional AI image prompt engineer. Your job:" +
             "\n\n[STEP 1 — OUTPUT ===ZH=== FIRST]" +
@@ -514,7 +517,7 @@ async function doUnlock(isAutoLogin = false) {
             "\n===EN===" +
             "\n(optimized English prompt — complete, no line breaks)"
 
-                    setOptimizeStatus("✨ AI 優化中（第1次請求，最多重試3次）...");
+                    setOptimizeStatus(_lang==="zh"?"✨ AI 優化中，請稍候...":"✨ AI optimizing...");
           const optimized = await callGeminiWithRetry(cloudApiKey, systemPrompt + "\n\nInput prompt:\n" + sourcePrompt, 8192);
 
           // Parse EN/ZH sections — string split approach (most reliable)
@@ -539,9 +542,9 @@ async function doUnlock(isAutoLogin = false) {
           }
           if (!enText) enText = raw.trim();
           setCustomPos(enText);
-          setCustomZh(zhText || "（AI 未回傳中文翻譯）");
-          const zhStatus = zhText ? " + ZH 中文翻譯已填入" : "（ZH未回傳，可手動填）";
-          setOptimizeStatus("✅ 優化完成！EN" + zhStatus);
+          setCustomZh(zhText || _lang==="zh"?"（AI 未回傳中文翻譯）":"(No ZH translation)");
+          const zhStatus = zhText ? " + ZH 中文翻譯已填入" : _lang==="zh"?"（ZH未回傳，可手動填）":"(No ZH returned)";
+          setOptimizeStatus(_lang==="zh"?"✅ 優化完成！EN":"✅ Done! EN" + zhStatus);
           setTimeout(() => setOptimizeStatus(""), 4000);
         } catch(e) {
           setOptimizeStatus(`❌ 優化失敗：${e.message}`);
@@ -559,28 +562,28 @@ async function doUnlock(isAutoLogin = false) {
             <span
               onClick={() => setIsOpen(p => !p)}
               style={{color:acColor, fontWeight:"bold", fontSize:13, letterSpacing:1, cursor:"pointer", userSelect:"none", flex:1}}
-            >✏️ 自訂提示詞直送</span>
+            >{_lang==="zh"?"✏️ 自訂提示詞直送":"✏️ Custom Prompt"}</span>
             {/* 方案C：從剪貼簿貼入 */}
             <button
               onClick={handlePasteFromClipboard}
-              title="從剪貼簿讀取內容填入 POSITIVE"
+              title={_lang==="zh"?"從剪貼簿讀取內容填入 POSITIVE":"Paste clipboard into POSITIVE"}
               style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:6,cursor:"pointer",
                 background:"transparent",border:`1px solid ${acColor}66`,color:(acColor+"BB"),transition:"all 0.15s"}}
-            >📥 貼入剪貼簿</button>
+            >{_lang==="zh"?"📥 貼入剪貼簿":"📥 Paste"}</button>
             {/* 方案B：AI優化 */}
             <button
               onClick={handleAIOptimize}
               disabled={isOptimizing}
-              title="用 Gemini AI 優化目前的提示詞並自動填入"
+              title={_lang==="zh"?"用 Gemini AI 優化目前的提示詞並自動填入":"Use Gemini AI to optimize and fill prompt"}
               style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isOptimizing?"wait":"pointer",
                 background:isOptimizing?`${C.cloud}22`:`${C.cloud}15`,
                 border:`1px solid ${isOptimizing?C.cloud:(C.cloud+"66")}`,
                 color:isOptimizing?C.cloud:(C.cloud+"BB"),transition:"all 0.15s"}}
-            >{isOptimizing?"⏳ 優化中...":"✨ AI優化Prompt"}</button>
+            >{isOptimizing?_lang==="zh"?"⏳ 優化中...":"⏳ Optimizing...":_lang==="zh"?"✨ AI優化Prompt":"✨ AI Optimize"}</button>
             <span
               onClick={() => setIsOpen(p => !p)}
               style={{color:acColor, fontSize:12, opacity:0.7, cursor:"pointer", userSelect:"none"}}
-            >{isOpen ? "▲ 收起" : "▼ 展開"}</span>
+            >{isOpen ? _lang==="zh"?"▲ 收起":"▲ Collapse" : _lang==="zh"?"▼ Expand":"▼ Expand"}</span>
           </div>
           {/* 狀態訊息列 */}
           {optimizeStatus && (
@@ -604,7 +607,7 @@ async function doUnlock(isAutoLogin = false) {
                       color: copiedPos ? acColor : acColor + "AA",
                       transition:"all 0.15s"
                     }}
-                  >{ copiedPos ? "✓ 已複製" : "📋 複製 EN"}</button>
+                  >{ copiedPos ? _lang==="zh"?"✓ 已複製":"✓ Copied" : _lang==="zh"?"📋 複製 EN":"📋 Copy EN"}</button>
                 </div>
                 {/* EN 欄位 */}
                 <div style={{marginBottom:6}}>
@@ -627,14 +630,14 @@ async function doUnlock(isAutoLogin = false) {
                         disabled={isTranslating}
                         style={{fontSize:9,padding:"2px 8px",background:isTranslating?"rgba(34,211,238,0.15)":"transparent",
                           border:"1px solid #22d3ee"+(isTranslating?"":"88"),color:isTranslating?"#22d3ee":"#22d3ee99",borderRadius:4,cursor:isTranslating?"wait":"pointer",fontWeight:700}}
-                      >{isTranslating?"⏳ 翻譯中...":"🌐 翻譯EN→ZH"}</button>
+                      >{isTranslating?_lang==="zh"?"⏳ 翻譯中...":"⏳ Translating...":_lang==="zh"?"🌐 翻譯EN→ZH":"🌐 Translate→ZH"}</button>
                       <button onClick={()=>setCustomZh("")} style={{fontSize:9,padding:"2px 7px",background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:4,cursor:"pointer"}}>清除</button>
                     </div>
                   </div>
                   <textarea
                     value={customZh}
                     onChange={e => setCustomZh(e.target.value)}
-                    placeholder="中文提示詞（AI 優化後自動填入）"
+                    placeholder={_lang==="zh"?"中文提示詞（AI 優化後自動填入）":"ZH prompt (auto-filled after AI Optimize)"}
                     rows={3}
                     style={{width:"100%",marginTop:4, background:"var(--inputBg)", border:("1.5px solid "+acColor+"33"), borderRadius:8, color:"var(--text)", fontSize:12, padding:"8px 12px", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"sans-serif", lineHeight:1.6, opacity:0.85}}
                   />
@@ -653,7 +656,7 @@ async function doUnlock(isAutoLogin = false) {
                         color: copiedNeg ? C.red : C.red + "AA",
                         transition:"all 0.15s"
                       }}
-                    >{copiedNeg ? "✓ 已複製" : "📋 複製"}</button>
+                    >{copiedNeg ? _lang==="zh"?"✓ 已複製":"✓ Copied" : _lang==="zh"?"📋 複製":"📋 Copy"}</button>
                   </div>
                   <textarea
                     value={customNeg}
@@ -674,7 +677,7 @@ async function doUnlock(isAutoLogin = false) {
                   <button
                     onClick={handleSendZH}
                     disabled={isComfyGenerating || !customZh.trim()}
-                    title="用中文提示詞直送（Z_image / ComfyUI 支援中文）"
+                    title={_lang==="zh"?"用中文提示詞直送（Z_image / ComfyUI 支援中文）":"Send ZH prompt directly (Z_image/ComfyUI supports ZH)"}
                     style={{padding:"8px 16px",
                       background: customZh.trim() ? "rgba(34,211,238,0.12)" : "transparent",
                       border: "1.5px solid " + (customZh.trim() ? "#22d3ee" : "#22d3ee44"),
@@ -682,7 +685,7 @@ async function doUnlock(isAutoLogin = false) {
                       borderRadius:7, fontSize:12, fontWeight:"bold",
                       cursor: (isComfyGenerating || !customZh.trim()) ? "not-allowed" : "pointer",
                       opacity: isComfyGenerating ? 0.6 : 1}}
-                  >{isRunningHubMode ? "⚡ 中文送 RunningHub" : "🚀 中文送 ComfyUI"}</button>
+                  >{isRunningHubMode ? _lang==="zh"?"⚡ 中文送 RunningHub":"⚡ ZH→RunningHub" : _lang==="zh"?"🚀 中文送 ComfyUI":"🚀 ZH→ComfyUI"}</button>
                 )}
                 <button
                   onClick={handleSend}
@@ -702,8 +705,8 @@ async function doUnlock(isAutoLogin = false) {
       const handleCopy = () => { navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 2000); };
       const acSend = isCloudMode ? C.cloud : isRunningHubMode ? C.rhGold : C.green;
       const handleOptimizeAndFill = async () => {
-        if (!txt.trim()) return alert("請先生成提示詞！");
-        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (!txt.trim()) return alert(_lang==="zh"?_lang==="zh"?"請先生成提示詞！":"Please generate a prompt first!":"Please generate a prompt first!");
+        if (!cloudApiKey) return alert(_lang==="zh"?"請先填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         setIsOptimizingPC(true);
         try {
           const sysP = "You are an expert AI image generation prompt engineer." +
@@ -711,9 +714,9 @@ async function doUnlock(isAutoLogin = false) {
             "\nReturn ONLY the optimized prompt, no explanations.";
           const optimized = await callGeminiWithRetry(cloudApiKey, sysP + "\n\nPrompt:\n" + txt, 8192);
           window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(optimized);
-          alert("✅ AI 優化完成！已填入自訂提示詞欄位");
+          alert(_lang==="zh"?_lang==="zh"?"✅ AI優化完成！":"✅ AI optimize done!":"✅ AI optimize done!");
         } catch(e) {
-          alert("❌ AI 優化失敗：" + e.message);
+          alert(_lang==="zh"?"❌ AI 優化失敗：":"❌ AI optimize failed: " + e.message);
         } finally { setIsOptimizingPC(false); }
       };
       return <div style={{background:"var(--promptBg)",border:`1px solid ${titleColor}30`,borderRadius:10,overflow:"hidden",marginBottom:8}}>
@@ -728,7 +731,7 @@ async function doUnlock(isAutoLogin = false) {
               <>
                 <Btn onClick={handleOptimizeAndFill} disabled={isOptimizingPC} color={C.cloud}
                   style={{padding:"2px 8px",fontSize:11,background:isOptimizingPC?`${C.cloud}22`:`${C.cloud}15`}}>
-                  {isOptimizingPC ? "⏳ 優化中..." : "✨ AI優化→自訂欄"}
+                  {isOptimizingPC ? _lang==="zh"?"⏳ 優化中...":"⏳ Optimizing..." : "✨ AI優化→自訂欄"}
                 </Btn>
                 <Btn onClick={async () => {
                   try {
@@ -739,7 +742,7 @@ async function doUnlock(isAutoLogin = false) {
                 }} color={C.green} style={{padding:"2px 8px",fontSize:11,background:`${C.green}15`}}>
                   📥 剪貼簿→自訂欄
                 </Btn>
-                {onActionSend && <Btn onClick={() => onActionSend(txt, tab)} disabled={isComfyGenerating} color={acSend} style={{padding:"2px 8px",fontSize:11, background:`${acSend}26`}}>{isComfyGenerating ? "⏳ 算圖中..." : (isRunningHubMode ? "⚡ 送至 RunningHub" : "🚀 送至 ComfyUI")}</Btn>}
+                {onActionSend && <Btn onClick={() => onActionSend(txt, tab)} disabled={isComfyGenerating} color={acSend} style={{padding:"2px 8px",fontSize:11, background:`${acSend}26`}}>{isComfyGenerating ? _lang==="zh"?_lang==="zh"?"⏳ 算圖中...":"⏳ Generating...":"⏳ Generating..." : (isRunningHubMode ? _lang==="zh"?"⚡ 送至 RunningHub":"⚡ Send to RH" : _lang==="zh"?"🚀 送至 ComfyUI":"🚀 Send to ComfyUI")}</Btn>}
               </>
             )}
             
@@ -775,7 +778,7 @@ async function doUnlock(isAutoLogin = false) {
               </>
             )}
 
-            <Btn onClick={handleCopy} color={copied ? C.green : titleColor} style={{padding:"2px 8px",fontSize:11}}>{copied ? "✓ 已複製" : "⎘ 純複製"}</Btn>
+            <Btn onClick={handleCopy} color={copied ? C.green : titleColor} style={{padding:"2px 8px",fontSize:11}}>{copied ? _lang==="zh"?"✓ 已複製":"✓ Copied" : _lang==="zh"?"⎘ 純複製":"⎘ Copy"}</Btn>
           </div>
         </div>
         <div style={{padding:"10px 12px",fontSize:13,fontFamily:"monospace",lineHeight:1.7,color:"var(--text)",maxHeight:160,overflowY:"auto",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{txt}</div>
@@ -783,8 +786,8 @@ async function doUnlock(isAutoLogin = false) {
     }
     function CopyAll({prompts, selChars, mergedChars, title, C}) {
       const [copied,setCopied]=useState("");
-      const copy = lang => { const z = lang === "zh"; let parts = [`=== ${title} ===`, `\n[${z?"正向":"Positive"}]\n${z ? prompts.pos.zh : prompts.pos.en}`, `\n[${z?"負向":"Negative"}]\n${z ? prompts.neg.zh : prompts.neg.en}`]; selChars.forEach(charId => { const p = prompts[charId]; if (p && (z ? p.zh : p.en)) { parts.push(`\n[${mergedChars[charId]?.name || charId}]\n${z ? p.zh : p.en}`); } }); navigator.clipboard.writeText(parts.filter(Boolean).join("\n")); setCopied(lang); setTimeout(()=>setCopied(""),2500); };
-      return <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:10,flexWrap:"wrap"}}><Btn onClick={()=>copy("zh")} color={copied==="zh"?C.green:C.pink}>{copied==="zh"?"✓ 已複製全部中文":"⎘ 複製全部中文"}</Btn><Btn onClick={()=>copy("en")} color={copied==="en"?C.green:C.cyan}>{copied==="en"?"✓ Copied All EN":"⎘ 複製全部英文"}</Btn></div>;
+      const copy = lang => { const z = lang === "zh"; let parts = [`=== ${title} ===`, `\n[${z?_lang==="zh"?"正向":"Positive":"Positive"}]\n${z ? prompts.pos.zh : prompts.pos.en}`, `\n[${z?_lang==="zh"?"負向":"Negative":"Negative"}]\n${z ? prompts.neg.zh : prompts.neg.en}`]; selChars.forEach(charId => { const p = prompts[charId]; if (p && (z ? p.zh : p.en)) { parts.push(`\n[${mergedChars[charId]?.name || charId}]\n${z ? p.zh : p.en}`); } }); navigator.clipboard.writeText(parts.filter(Boolean).join("\n")); setCopied(lang); setTimeout(()=>setCopied(""),2500); };
+      return <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:10,flexWrap:"wrap"}}><Btn onClick={()=>copy("zh")} color={copied==="zh"?C.green:C.pink}>{copied==="zh"?_lang==="zh"?"✓ 已複製全部中文":"✓ Copied All ZH":_lang==="zh"?"⎘ 複製全部中文":"⎘ Copy All ZH"}</Btn><Btn onClick={()=>copy("en")} color={copied==="en"?C.green:C.cyan}>{copied==="en"?"✓ Copied All EN":_lang==="zh"?"⎘ 複製全部英文":"⎘ Copy All EN"}</Btn></div>;
     }
     function Sec({title, children, aiCategory, onAIGenerate, onCustomAdd, accentColor, actionNode, onClear, containerStyle}) {
       const [val, setVal] = useState(""); const handleAdd = () => { if(val.trim()) { onCustomAdd(aiCategory, val.trim()); setVal(""); } };
@@ -792,9 +795,9 @@ async function doUnlock(isAutoLogin = false) {
         <div style={{display:"flex",justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:8}}>
           <div style={{fontSize:11,color:accentColor,letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>{title}</div>
           <div style={{display:"flex", gap:6, alignItems:"center"}}>
-            {onCustomAdd && aiCategory && ( <div style={{display:"flex", background:"var(--inputBg)", borderRadius:4, border:`1px solid ${accentColor}55`, overflow:"hidden"}}><input type="text" value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e => e.key==='Enter' && handleAdd()} placeholder="自訂..." style={{background:"transparent", border:"none", color:"var(--text)", fontSize:10, padding:"4px 8px", width:70, outline:"none"}} /><button onClick={handleAdd} style={{background:accentColor, color:"#000", border:"none", padding:"0 8px", fontSize:12, cursor:"pointer", fontWeight:"bold"}}>+</button></div> )}
-            {aiCategory && <button onClick={()=>onAIGenerate(aiCategory)} style={{background:"transparent",border:`1px solid ${accentColor}`,color:accentColor,padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer",opacity:0.8, fontWeight:"bold"}}>✦ AI盲盒</button>}
-            {onClear && <button onClick={onClear} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>✕ 清空此區</button>}
+            {onCustomAdd && aiCategory && ( <div style={{display:"flex", background:"var(--inputBg)", borderRadius:4, border:`1px solid ${accentColor}55`, overflow:"hidden"}}><input type="text" value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e => e.key==='Enter' && handleAdd()} placeholder={_lang==="zh"?"自訂...":"Custom..."} style={{background:"transparent", border:"none", color:"var(--text)", fontSize:10, padding:"4px 8px", width:70, outline:"none"}} /><button onClick={handleAdd} style={{background:accentColor, color:"#000", border:"none", padding:"0 8px", fontSize:12, cursor:"pointer", fontWeight:"bold"}}>+</button></div> )}
+            {aiCategory && <button onClick={()=>onAIGenerate(aiCategory)} style={{background:"transparent",border:`1px solid ${accentColor}`,color:accentColor,padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer",opacity:0.8, fontWeight:"bold"}}>{_lang==="zh"?"✦ AI盲盒":"✦ AI Pick"}</button>}
+            {onClear && <button onClick={onClear} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>{_lang==="zh"?"✕ 清空此區":"✕ Clear"}</button>}
             {actionNode}
           </div>
         </div>{children}</div>;
@@ -802,6 +805,13 @@ async function doUnlock(isAutoLogin = false) {
 
     function App() {
       const [theme, setTheme] = useState(() => localStorage.getItem("ops_theme") || "dark");
+      const [uiLang, setUiLang] = useState(() => localStorage.getItem("ops_ui_lang") || "zh");
+      const toggleLang = () => {
+        const next = uiLang === "zh" ? "en" : "zh";
+        _lang = next;  // update module-level var (read by sub-components)
+        setUiLang(next);
+        localStorage.setItem("ops_ui_lang", next);
+      };
       useEffect(() => {
         localStorage.setItem("ops_theme", theme); const t = THEMES[theme] || THEMES.dark;
         document.documentElement.style.setProperty('--bg', t.bg); document.documentElement.style.setProperty('--card', t.card);
@@ -846,7 +856,7 @@ async function doUnlock(isAutoLogin = false) {
       const [translatingScene, setTranslatingScene] = useState(null);  // index being translated
 
       const translateScene = async (scene, i) => {
-        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (!cloudApiKey) return alert(uiLang==="zh"?"請先填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         setTranslatingScene(i);
         try {
           const tp = "Translate this AI image storyboard prompt into fluent Traditional Chinese." +
@@ -855,14 +865,14 @@ async function doUnlock(isAutoLogin = false) {
           const zh = await callGeminiWithRetry(cloudApiKey, tp, 4096);
           setSceneTranslations(prev => ({...prev, [i]: zh.trim()}));
         } catch(e) {
-          alert("❌ 翻譯失敗：" + e.message);
+          alert(_lang==="zh"?"❌ 翻譯失敗：":"❌ Translation failed: " + e.message);
         } finally {
           setTranslatingScene(null);
         }
       };
 
       const translateAllScenes = async () => {
-        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (!cloudApiKey) return alert(uiLang==="zh"?"請先填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         if (!storyboardResult || !storyboardResult.scenes) return;
         for (let i = 0; i < storyboardResult.scenes.length; i++) {
           if (sceneTranslations[i]) continue; // skip already translated
@@ -925,21 +935,21 @@ async function doUnlock(isAutoLogin = false) {
       const allF = [...FABRIC_DB, ...customDB.fabric]; const allB = [...BOTTOM_DB, ...customDB.bottom];
       const allP = [...POSE_DB, ...customDB.pose]; const allM = [...MAKEUP_DB, ...customDB.makeup];
       const ANGLE_CATS = [
-        { key:"all", label:"全部視角" },
-        { key:"height", label:"🎥 仰俯高低" },
-        { key:"dir",    label:"🧭 人物朝向" },
-        { key:"lens",   label:"🔭 鏡頭效果" },
-        { key:"pov",    label:"👁 沉浸視角" }
+        { key:"all", label:uiLang==="zh"?"全部視角":"All Angles" },
+        { key:"height", label:uiLang==="zh"?"🎥 仰俯高低":"🎥 High/Low" },
+        { key:"dir",    label:uiLang==="zh"?"🧭 人物朝向":"🧭 Direction" },
+        { key:"lens",   label:uiLang==="zh"?"🔭 鏡頭效果":"🔭 Lens FX" },
+        { key:"pov",    label:uiLang==="zh"?"👁 沉浸視角":"👁 Immersive" }
       ];
       const filteredAngleList = angleCat === "all" ? ANGLE_DB : ANGLE_DB.filter(a => a.cat === angleCat);
       const SHOT_CATS = [
-        { key:"all", label:"全部景別", en:"All" },
-        { key:"cu",  label:"👁 特寫",    en:"Close-Up",    desc:"臉/頭部為主" },
-        { key:"mcu", label:"👤 近景",    en:"Medium CU",   desc:"胸部以上" },
-        { key:"ms",  label:"🧍 半身",    en:"Medium Shot", desc:"腰部以上" },
-        { key:"mls", label:"📐 七分身",  en:"Medium Long", desc:"膝蓋以上" },
+        { key:"all", label: uiLang==="zh"?"全部景別":"All Shots", en:"All" },
+        { key:"cu",  label: uiLang==="zh"?"👁 特寫":"👁 CU",   en:"Close-Up", desc: uiLang==="zh"?"臉/頭部為主":"Face/Head" },
+        { key:"mcu", label: uiLang==="zh"?"👤 近景":"👤 MCU",  en:"Medium CU", desc: uiLang==="zh"?"胸部以上":"Chest up" },
+        { key:"ms",  label: uiLang==="zh"?"🧍 半身":"🧍 Half", en:"Medium Shot", desc: uiLang==="zh"?"腰部以上":"Waist up" },
+        { key:"mls", label: uiLang==="zh"?"📐 七分身":"📐 3/4", en:"Medium Long", desc: uiLang==="zh"?"膝蓋以上":"Knees up" },
         { key:"fs",  label:"🧍‍♀️ 全身",  en:"Full Shot",   desc:"完整全身" },
-        { key:"ls",  label:"🌄 帶景全身",en:"Long Shot",   desc:"人物+大環境" },
+        { key:"ls",  label: uiLang==="zh"?"🌄 帶景全身":"🌄 Long", en:"Long Shot", desc: uiLang==="zh"?"人物+大環境":"Wide" },
       ];
       const filteredPoseList = (() => {
         let list = allP;
@@ -947,24 +957,24 @@ async function doUnlock(isAutoLogin = false) {
         return list;
       })();
       const SHOE_CATS = [
-        { key:"all",        label:"全部鞋款" },
-        { key:"trend2026",  label:"🔥 2026潮流" },
-        { key:"fashion",    label:"👗 時尚高定" },
-        { key:"gala",       label:"💎 高級宴會" },
-        { key:"daily",      label:"☀️ 日常百搭" },
-        { key:"sport",      label:"🏃 運動機能" },
-        { key:"korean",     label:"🇰🇷 韓系風格" },
-        { key:"idol",       label:"⭐ 偶像藝人" },
-        { key:"dark",       label:"🖤 頹廢暗黑" },
-        { key:"anime",      label:"🎌 動漫二次元" },
-        { key:"guofeng",    label:"🏮 國風漢服" },
+        { key:"all",        label:uiLang==="zh"?"全部鞋款":"All Shoes" },
+        { key:"trend2026",  label:uiLang==="zh"?"🔥 2026潮流":"🔥 2026 Trend" },
+        { key:"fashion",    label:uiLang==="zh"?"👗 時尚高定":"👗 High Fashion" },
+        { key:"gala",       label:uiLang==="zh"?"💎 高級宴會":"💎 Formal" },
+        { key:"daily",      label:uiLang==="zh"?"☀️ 日常百搭":"☀️ Daily" },
+        { key:"sport",      label:uiLang==="zh"?"🏃 運動機能":"🏃 Sport" },
+        { key:"korean",     label:uiLang==="zh"?"🇰🇷 韓系風格":"🇰🇷 K-Style" },
+        { key:"idol",       label:uiLang==="zh"?"⭐ 偶像藝人":"⭐ Idol" },
+        { key:"dark",       label:uiLang==="zh"?"🖤 頹廢暗黑":"🖤 Dark Gothic" },
+        { key:"anime",      label:uiLang==="zh"?"🎌 動漫二次元":"🎌 Anime" },
+        { key:"guofeng",    label:uiLang==="zh"?"🏮 國風漢服":"🏮 Hanfu" },
         { key:"cosplay",    label:"🎭 Cosplay" }
       ];
       const filteredShoeList = shoeCat === "all" ? SHOE_DB : SHOE_DB.filter(x => x.cat === shoeCat);
       const SEASON_CATS = [
-        { key:"all", label:"🌍 全部", count_label:"全部" },
-        { key:"ss",  label:"🌸 春夏", count_label:"春夏款" },
-        { key:"aw",  label:"🍂 秋冬", count_label:"秋冬款" },
+        { key:"all", label: uiLang==="zh"?"🌍 全部":"🌍 All", count_label: uiLang==="zh"?"全部":"All" },
+        { key:"ss",  label: uiLang==="zh"?"🌸 春夏":"🌸 S/S", count_label: uiLang==="zh"?"春夏款":"S/S" },
+        { key:"aw",  label: uiLang==="zh"?"🍂 秋冬":"🍂 A/W", count_label: uiLang==="zh"?"秋冬款":"A/W" },
       ];
       const filteredFabricList = (() => {
         let list = [...FABRIC_DB, ...customDB.fabric];
@@ -994,10 +1004,10 @@ async function doUnlock(isAutoLogin = false) {
       const handleGenStoryboard = async () => {
         const srcEn = prompts.pos?.en || "";
         const srcZh = prompts.pos?.zh || "";
-        if (storyboardMode === "video" && !srcEn && !srcZh) return alert("請先生成提示詞！");
-        if (storyboardMode === "flow" && !srcEn && !srcZh && !storyboardOutline.trim()) return alert("請先生成提示詞或輸入故事大綱！");
-        if (storyboardMode === "image" && !storyboardOutline.trim()) return alert("請輸入【內容大綱】！");
-        if (!cloudApiKey) return alert("請先填入 Google AI Studio API Key！");
+        if (storyboardMode === "video" && !srcEn && !srcZh) return alert(uiLang==="zh"?_lang==="zh"?"請先生成提示詞！":"Please generate a prompt first!":"Please generate a prompt first!");
+        if (storyboardMode === "flow" && !srcEn && !srcZh && !storyboardOutline.trim()) return alert(uiLang==="zh"?"請先生成提示詞或輸入故事大綱！":"Please generate a prompt or enter a story outline!");
+        if (storyboardMode === "image" && !storyboardOutline.trim()) return alert(uiLang==="zh"?"請輸入【內容大綱】！":"Please enter a story outline!");
+        if (!cloudApiKey) return alert(uiLang==="zh"?"請先填入 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         setIsGenStoryboard(true);
         setShowStoryboard(true);
         setStoryboardResult(null); setSceneTranslations({});
@@ -1077,7 +1087,7 @@ async function doUnlock(isAutoLogin = false) {
             setSceneTranslations({});
           }
         } catch(e) {
-          alert("❌ 分鏡生成失敗：" + e.message);
+          alert(_lang==="zh"?"❌ 分鏡生成失敗：":"❌ Storyboard failed: " + e.message);
           setShowStoryboard(false);
         } finally {
           setIsGenStoryboard(false);
@@ -1100,7 +1110,7 @@ async function doUnlock(isAutoLogin = false) {
         });
       };
       const exportHistory = () => {
-        if (!promptHistory.length) return alert("尚無歷史紀錄");
+        if (!promptHistory.length) return alert(uiLang==="zh"?"尚無歷史紀錄":"No history yet");
         const csv = "\uFEFF" + "時間,名稱,正向EN,正向ZH,負向EN\n" +
           promptHistory.map(h => [h.ts, h.name||"", h.pos_en, h.pos_zh, h.neg_en].map(v => '"' + (v||"").replace(/"/g,"''") + '"').join(",")).join("\n");
         const a = document.createElement("a");
@@ -1127,12 +1137,12 @@ async function doUnlock(isAutoLogin = false) {
       };
 
       const handleCloudGenerate = async (posText) => {
-        if (!cloudApiKey) return alert("請先填寫您的 Google AI Studio API Key！");
+        if (!cloudApiKey) return alert(_lang==="zh"?"請先填寫您的 Google AI Studio API Key！":"Please enter your Google AI Studio API Key!");
         setIsComfyGenerating(true); setComfyProgress(50); setComfyImages([]);
         try {
             let aspect = "1:1";
-            if (posText.includes("9:16") || posText.includes("豎版")) aspect = "9:16";
-            else if (posText.includes("16:9") || posText.includes("橫版")) aspect = "16:9";
+            if (posText.includes("9:16") || posText.includes(uiLang==="zh"?"豎版":"Portrait")) aspect = "9:16";
+            else if (posText.includes("16:9") || posText.includes(uiLang==="zh"?"橫版":"Landscape")) aspect = "16:9";
             else if (posText.includes("3:4") || posText.includes("4:5")) aspect = "3:4";
             else if (posText.includes("4:3")) aspect = "4:3";
 
@@ -1146,8 +1156,8 @@ async function doUnlock(isAutoLogin = false) {
             if (data.predictions && data.predictions.length > 0) {
                 setComfyImages([`data:image/jpeg;base64,${data.predictions[0].bytesBase64Encoded}`]); setComfyProgress(100);
                 setTimeout(() => { if (comfyGalleryRef.current) comfyGalleryRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
-            } else { throw new Error("未回傳圖片，可能觸發安全機制。"); }
-        } catch (e) { alert("❌ 雲端算圖失敗：" + e.message); setComfyProgress(0); } finally { setIsComfyGenerating(false); }
+            } else { throw new Error(_lang==="zh"?"未回傳圖片，可能觸發安全機制。":"No image returned, may have triggered safety filter."); }
+        } catch (e) { alert(_lang==="zh"?"❌ 雲端算圖失敗：":"❌ Cloud generation failed: " + e.message); setComfyProgress(0); } finally { setIsComfyGenerating(false); }
       };
 
       const fetchOutputImages = async (promptId) => {
@@ -1162,7 +1172,7 @@ async function doUnlock(isAutoLogin = false) {
                 }
             }
             setComfyImages(newImages); setTimeout(() => { if (comfyGalleryRef.current) comfyGalleryRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
-        } catch (e) { alert("⚠️ 算圖完成，但抓取圖片錯誤。"); } finally { setIsComfyGenerating(false); }
+        } catch (e) { alert(_lang==="zh"?"⚠️ 算圖完成，但抓取圖片錯誤。":"⚠️ Done but image fetch error."); } finally { setIsComfyGenerating(false); }
       };
 
       const handleCancel = () => {
@@ -1183,7 +1193,7 @@ async function doUnlock(isAutoLogin = false) {
       };
 
       const handleComfySend = async (posText, negText) => {
-        if (!comfyUrl) return alert("請先填寫 ComfyUI API 網址！");
+        if (!comfyUrl) return alert(_lang==="zh"?"請先填寫 ComfyUI API 網址！":"Please enter ComfyUI API URL!");
         cancelRef.current = false; setIsComfyGenerating(true); setComfyProgress(0); setComfyImages([]);
         let ws;
         try {
@@ -1225,13 +1235,13 @@ async function doUnlock(isAutoLogin = false) {
                         if (data.type === 'executing' && data.data.node === null && data.data.prompt_id === promptId) { ws.close(); fetchOutputImages(promptId); }
                     }
                 };
-            } else { alert("⚠️ WebSocket 連線失敗，無法即時追蹤進度，但已送出算圖請求。"); setIsComfyGenerating(false); }
+            } else { alert(_lang==="zh"?"⚠️ WebSocket 連線失敗，無法即時追蹤進度，但已送出算圖請求。":"⚠️ WebSocket failed, but request was sent."); setIsComfyGenerating(false); }
         } catch (err) { setIsComfyGenerating(false); alert(`❌ 發送失敗！\n系統錯誤: ${err.message}`); if (ws) ws.close(); }
       };
 
       const handleRunningHubSend = async (posText) => {
-        if (!rhApiKey) return alert("請先填寫 RunningHub API Key！");
-        if (!rhWorkflowId) return alert("請先填寫 RunningHub 工作流 ID！");
+        if (!rhApiKey) return alert(_lang==="zh"?"請先填寫 RunningHub API Key！":"Please enter RunningHub API Key!");
+        if (!rhWorkflowId) return alert(_lang==="zh"?"請先填寫 RunningHub 工作流 ID！":"Please enter RunningHub Workflow ID!");
         cancelRef.current = false; setIsComfyGenerating(true); setComfyProgress(5); setComfyImages([]); setRhQueueStatus(""); setCopiedIdx(null);
         const RH_ERRORS = {
           "TASK_QUEUE_MAXED": "⏳ 佇列已滿\n請等當前任務完成後再試，或升級 RunningHub 方案。",
@@ -1263,7 +1273,7 @@ async function doUnlock(isAutoLogin = false) {
             const w = (4 - retry) * 10 + 15;
             setRhQueueStatus(`⏳ 佇列已滿，${w}秒後重試 (剩餘${retry}次)...`);
             await new Promise(r => setTimeout(r, w * 1000));
-            setRhQueueStatus("🔄 重試中...");
+            setRhQueueStatus(_lang==="zh"?"🔄 重試中...":"🔄 Retrying...");
             return tryCreate(retry - 1);
           }
           if (j.code !== 0) throw new Error(RH_ERRORS[errKey] || `建立失敗: ${errKey || j.code}`);
@@ -1271,7 +1281,7 @@ async function doUnlock(isAutoLogin = false) {
           return j.data.taskId;
         };
         try {
-          setRhQueueStatus("📡 建立任務中...");
+          setRhQueueStatus(_lang==="zh"?"📡 建立任務中...":"📡 Creating task...");
           const taskId = await tryCreate(3);
           setComfyProgress(25); setRhQueueStatus(`✅ 任務建立成功，等待算圖...`);
           let attempts = 0;
@@ -1286,7 +1296,7 @@ async function doUnlock(isAutoLogin = false) {
                 const imgs = sj.data.filter(o => o.fileUrl);
                 if (imgs.length > 0) {
                   setComfyImages(imgs.map(o => o.fileUrl));
-                  setComfyProgress(100); setRhQueueStatus("✨ 算圖完成！");
+                  setComfyProgress(100); setRhQueueStatus(_lang==="zh"?"✨ 算圖完成！":"✨ Generation complete!");
                   setTimeout(() => { if (comfyGalleryRef.current) comfyGalleryRef.current.scrollIntoView({ behavior:"smooth", block:"start" }); }, 300);
                   return;
                 }
@@ -1303,7 +1313,7 @@ async function doUnlock(isAutoLogin = false) {
       };
 
       const handleAddCustomChar = () => {
-        if (!newChar.id || !newChar.name) return alert("請填寫角色 ID 和顯示名稱！");
+        if (!newChar.id || !newChar.name) return alert(_lang==="zh"?"請填寫角色 ID 和顯示名稱！":"Please fill in character ID and name!");
         const id = newChar.id.trim().toLowerCase();
         const updated = { ...customChars, [id]: { name: newChar.name, color: newChar.color, zh: newChar.zh, en: newChar.en } };
         setCustomChars(updated); localStorage.setItem("ops_custom_chars", JSON.stringify(updated));
@@ -1553,7 +1563,7 @@ async function doUnlock(isAutoLogin = false) {
         const finalZH = chunksZH.filter(Boolean).join("，"); const finalEN = chunksEN.filter(Boolean).join(", ");
 
         setTimeout(() => {
-          setResult({ title_zh: f ? f.label : "自定義組合", title_en: "Custom Styling" });
+          setResult({ title_zh: f ? f.label : uiLang==="zh"?"自定義組合":"Custom Mix", title_en: "Custom Styling" });
           
           // 組合基礎負向詞與動態防雷詞 (保留您之前的優化)
           const baseNegEN = isCloudMode 
@@ -1622,36 +1632,49 @@ async function doUnlock(isAutoLogin = false) {
               <div style={{color:C.orange,fontWeight:900,fontSize:15,letterSpacing:4}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
               <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.2 終極進化版</div>
             </div>
-            <div style={{display:"flex", gap:8}}>
-              <Btn onClick={clearAll} color={C.red} style={{background:"transparent"}}>✕ 清空全部</Btn>
-              <Btn onClick={randomize} color="var(--subtext)">⟳ 隨機組合</Btn>
+            <div style={{display:"flex", gap:8, alignItems:"center"}}>
+              <button onClick={toggleLang} style={{
+                padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                background:uiLang==="en"?"rgba(34,211,238,0.2)":"rgba(255,255,255,0.08)",
+                border:"1px solid " + (uiLang==="en"?"#22d3ee":"rgba(255,255,255,0.2)"),
+                color:uiLang==="en"?"#22d3ee":"var(--subtext)",transition:"all 0.2s"
+              }}>{uiLang==="zh"?"🌐 EN":"🌐 中文"}</button>
+              <Btn onClick={clearAll} color={C.red} style={{background:"transparent"}}>
+                {uiLang==="zh"?"✕ 清空全部":"✕ Clear All"}
+              </Btn>
+              <Btn onClick={randomize} color="var(--subtext)">
+                {uiLang==="zh"?"⟳ 隨機組合":"⟳ Randomize"}
+              </Btn>
             </div>
           </div>
 
           <div style={{maxWidth:1100,margin:"0 auto",padding:"16px 16px"}}>
             <div style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>安全模式·雲端破防咒語</span></button>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>新王登基·雲端 ComfyUI 算力</span></button>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>RTX 5090·極限物理張力</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"安全模式·雲端破防咒語":"Cloud Safety Mode"}</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"新王登基·雲端 ComfyUI 算力":"RunningHub Cloud Engine"}</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"RTX 5090·極限物理張力":"RTX 5090 · Local Engine"}</span></button>
             </div>
 
             {isCloudMode ? (
               <div style={{marginBottom:16,padding:"12px",background:`${C.cloud}1A`,border:`1px dashed ${C.cloud}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:12,color:C.cloud,fontWeight:"bold",display:"flex",alignItems:"center",gap:8}}>
-                  <span>☁️ Gemini 官方 Web/App 跳轉模式</span>
-                  <span style={{fontSize:10,color:C.cloud,background:`${C.cloud}26`,padding:"2px 6px",borderRadius:4}}>安全免金鑰</span>
+                  <span>{_lang==="zh"?"☁️ Gemini 官方 Web/App 跳轉模式":"☁️ Gemini Official Web/App Mode"}</span>
+                  <span style={{fontSize:10,color:C.cloud,background:`${C.cloud}26`,padding:"2px 6px",borderRadius:4}}>{_lang==="zh"?"安全免金鑰":"No API Key Needed"}</span>
                 </div>
                 <div style={{fontSize:11,color:"var(--text)",lineHeight:1.6}}>
-                  系統將為您自動掛載隱性浮雕微陰影等破防咒語。點擊下方生成後，按下提示詞右上方的 <b style={{color:C.cloud}}>「⎘ 複製並開啟 Gemini」</b>，即可直接在官方介面貼上生圖！
+                  {_lang==="zh"
+                    ? <span>系統將為您自動掛載隱性浮雕微陰影等破防咒語。點擊下方生成後，按下提示詞右上方的 <b style={{color:C.cloud}}>「⎘ 複製並開啟 Gemini」</b>，即可直接在官方介面貼上生圖！</span>
+                    : <span>Auto-injects shadow relief tags. After generating, click <b style={{color:C.cloud}}>⎘ Copy &amp; Open Gemini</b> above the prompt to paste directly.</span>
+                  }
                 </div>
                 {/* ✨ AI 優化 API Key 輸入欄 */}
                 <div style={{display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:6,border:`1px solid ${C.cloud}33`}}>
-                  <label style={{fontSize:11,color:C.cloud,fontWeight:"bold",whiteSpace:"nowrap"}}>✨ AI優化 Key:</label>
+                  <label style={{fontSize:11,color:C.cloud,fontWeight:"bold",whiteSpace:"nowrap"}}>{_lang==="zh"?"✨ AI優化 Key:":"✨ AI Optimize Key:"}</label>
                   <input
                     type="password"
                     value={cloudApiKey}
                     onChange={e => { setCloudApiKey(e.target.value); localStorage.setItem("ops_cloud_api_key", e.target.value); }}
-                    placeholder="貼上 Google AI Studio API Key（用於 AI優化Prompt）"
+                    placeholder={_lang==="zh"?"貼上 Google AI Studio API Key（用於 AI優化Prompt）":"Paste Google AI Studio API Key"}
                     style={{flex:1,padding:"5px 10px",background:"var(--inputBg)",border:`1px solid ${C.cloud}44`,borderRadius:5,color:"var(--text)",fontSize:11,outline:"none"}}
                   />
                   {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓ 已設定</span>}
@@ -1660,7 +1683,7 @@ async function doUnlock(isAutoLogin = false) {
             ) : isRunningHubMode ? (
               <div style={{marginBottom:16,padding:"12px",background:`${C.rhGold}12`,border:`1px dashed ${C.rhGold}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:11,color:C.rhGold,fontWeight:"bold",display:"flex",justifyContent:"space-between"}}>
-                  <span>⚡ Z-image 新王登基 — RunningHub 雲端 ComfyUI 算力</span>
+                  <span>{_lang==="zh"?"⚡ Z-image 新王登基 — RunningHub 雲端 ComfyUI 算力":"⚡ Z-image — RunningHub Cloud Engine"}</span>
                   <a href="https://www.runninghub.cn" target="_blank" rel="noreferrer" style={{color:C.rhGold,textDecoration:"underline"}}>👉 前往 RunningHub</a>
                 </div>
                 
@@ -1671,22 +1694,22 @@ async function doUnlock(isAutoLogin = false) {
                   </div>
                   <div style={{fontSize:12,color:C.rhGold,display:"flex",alignItems:"center",gap:8,background:`${C.rhGold}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.rhGold}4D`,flex:"1 1 160px"}}>
                     <label style={{fontWeight:"bold",whiteSpace:"nowrap"}}>🆔 工作流 ID:</label>
-                    <input type="text" value={rhWorkflowId} onChange={e=>{setRhWorkflowId(e.target.value);localStorage.setItem("ops_rh_workflow_id",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="如: 1234567" />
+                    <input type="text" value={rhWorkflowId} onChange={e=>{setRhWorkflowId(e.target.value);localStorage.setItem("ops_rh_workflow_id",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder={uiLang==="zh"?"如: 1234567":"e.g. 1234567"} />
                   </div>
                   <div style={{fontSize:12,color:C.cloud,display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cloud}33`,flex:"1 1 200px"}}>
-                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>✨ AI優化 Key:</label>
-                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="Google AI Studio Key（AI優化Prompt用）" />
+                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>{_lang==="zh"?"✨ AI優化 Key:":"✨ AI Optimize Key:"}</label>
+                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder={uiLang==="zh"?"Google AI Studio Key（AI優化Prompt用）":"Google AI Studio Key (for AI Optimize)"} />
                     {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓</span>}
                   </div>
                 </div>
 
                 <div style={{display:"flex", gap:12, flexWrap:"wrap", marginTop:4}}>
                   <div style={{fontSize:11,color:C.rhGold,display:"flex",alignItems:"center",gap:6}}>
-                    正向詞 Node ID: 
+                    {_lang==="zh"?"正向詞 Node ID: ":"Positive Node ID: "}
                     <input type="text" value={rhNodes.pos} onChange={e=>{const v=e.target.value; setRhNodes(p=>{const n={...p, pos:v}; localStorage.setItem("ops_rh_nodes", JSON.stringify(n)); return n;})}} style={{background:"var(--bg)",border:`1px solid ${C.rhGold}55`,color:"var(--text)",padding:"2px 6px",borderRadius:4,width:"40px"}} />
                   </div>
                   <div style={{fontSize:11,color:C.rhGold,display:"flex",alignItems:"center",gap:6}}>
-                    隨機種子 Node ID (逗號分隔): 
+                    {_lang==="zh"?"隨機種子 Node ID (逗號分隔): ":"Seed Node ID (comma-sep): "}
                     <input type="text" value={rhNodes.seed} onChange={e=>{const v=e.target.value; setRhNodes(p=>{const n={...p, seed:v}; localStorage.setItem("ops_rh_nodes", JSON.stringify(n)); return n;})}} style={{background:"var(--bg)",border:`1px solid ${C.rhGold}55`,color:"var(--text)",padding:"2px 6px",borderRadius:4,width:"60px"}} />
                   </div>
                 </div>
@@ -1695,7 +1718,7 @@ async function doUnlock(isAutoLogin = false) {
               <div style={{marginBottom:16,padding:"12px",background:`${C.orange}1A`,border:`1px dashed ${C.orange}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:11,color:C.orange,display:"flex",alignItems:"center",gap:8}}>
                   <input type="checkbox" checked={useHardcoreTags} onChange={e=>setUseHardcoreTags(e.target.checked)} style={{accentColor:C.orange,cursor:"pointer"}} id="hardcore-toggle" />
-                  <label style={{cursor:"pointer",fontWeight:"bold"}} htmlFor="hardcore-toggle">🔥 啟用 Danbooru 底層暴力標籤 (強制突破大模型平滑限制，注入 1.5 高權重內衣浮雕與張力破壞參數)</label>
+                  <label style={{cursor:"pointer",fontWeight:"bold"}} htmlFor="hardcore-toggle">{_lang==="zh"?"🔥 啟用 Danbooru 底層暴力標籤 (強制突破大模型平滑限制，注入 1.5 高權重內衣浮雕與張力破壞參數)":"🔥 Enable Danbooru Tags (inject 1.5 high-weight fabric tension params)"}數)</label>
                 </div>
                 
                 <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
@@ -1704,12 +1727,12 @@ async function doUnlock(isAutoLogin = false) {
                     <input type="text" value={comfyUrl} onChange={e=>setComfyUrl(e.target.value)} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="http://127.0.0.1:8188" />
                   </div>
                   <div style={{fontSize:12,color:C.cloud,display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cloud}33`, flex:"1 1 200px"}}>
-                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>✨ AI優化 Key:</label>
-                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="Google AI Studio Key（AI優化Prompt用）" />
+                    <label style={{fontWeight:"bold",whiteSpace:"nowrap",color:C.cloud}}>{_lang==="zh"?"✨ AI優化 Key:":"✨ AI Optimize Key:"}</label>
+                    <input type="password" value={cloudApiKey} onChange={e=>{setCloudApiKey(e.target.value);localStorage.setItem("ops_cloud_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder={uiLang==="zh"?"Google AI Studio Key（AI優化Prompt用）":"Google AI Studio Key (for AI Optimize)"} />
                     {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓</span>}
                   </div>
                   <div style={{fontSize:12,color:C.orange,display:"flex",alignItems:"center",gap:8,background:`${C.orange}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.orange}4D`, flex:"1 1 300px"}}>
-                    <label style={{fontWeight:"bold", whiteSpace:"nowrap"}}>📁 上傳 API JSON:</label>
+                    <label style={{fontWeight:"bold", whiteSpace:"nowrap"}}>{_lang==="zh"?"📁 上傳 API JSON:":"📁 Upload JSON:"}</label>
                     <input type="file" accept=".json" onChange={e => {
                       const file = e.target.files[0]; if(!file) return;
                       const reader = new FileReader();
@@ -1727,15 +1750,15 @@ async function doUnlock(isAutoLogin = false) {
 
                 <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
                   <div style={{fontSize:11,color:C.orange,display:"flex",alignItems:"center",gap:6}}>
-                    正向詞 Node ID: 
+                    {_lang==="zh"?"正向詞 Node ID: ":"Positive Node ID: "}
                     <input type="text" value={comfyNodes.pos} onChange={e=>{const v=e.target.value; setComfyNodes(p=>{const n={...p, pos:v}; localStorage.setItem("ops_comfy_nodes", JSON.stringify(n)); return n;})}} style={{background:"var(--bg)",border:`1px solid ${C.orange}55`,color:"var(--text)",padding:"2px 6px",borderRadius:4,width:"40px"}} />
                   </div>
                   <div style={{fontSize:11,color:C.orange,display:"flex",alignItems:"center",gap:6}}>
-                    負向詞 Node ID: 
+                    {_lang==="zh"?"負向詞 Node ID: ":"Negative Node ID: "}
                     <input type="text" value={comfyNodes.neg} onChange={e=>{const v=e.target.value; setComfyNodes(p=>{const n={...p, neg:v}; localStorage.setItem("ops_comfy_nodes", JSON.stringify(n)); return n;})}} style={{background:"var(--bg)",border:`1px solid ${C.orange}55`,color:"var(--text)",padding:"2px 6px",borderRadius:4,width:"40px"}} />
                   </div>
                   <div style={{fontSize:11,color:C.orange,display:"flex",alignItems:"center",gap:6}}>
-                    隨機種子 Node ID (逗號分隔): 
+                    {_lang==="zh"?"隨機種子 Node ID (逗號分隔): ":"Seed Node ID (comma-sep): "}
                     <input type="text" value={comfyNodes.seed} onChange={e=>{const v=e.target.value; setComfyNodes(p=>{const n={...p, seed:v}; localStorage.setItem("ops_comfy_nodes", JSON.stringify(n)); return n;})}} style={{background:"var(--bg)",border:`1px solid ${C.orange}55`,color:"var(--text)",padding:"2px 6px",borderRadius:4,width:"60px"}} />
                   </div>
                 </div>
@@ -1745,7 +1768,7 @@ async function doUnlock(isAutoLogin = false) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               {/* === 左側欄位 === */}
               <div style={{display: "flex", flexDirection: "column"}}>
-                <Sec title="① 服裝材質 FABRIC" aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>{setSelF(null);setFabricSeason("all");}}>
+                <Sec title={uiLang==="zh"?"① 服裝材質 FABRIC":"① Fabric & Top"} aiCategory="fabric" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.orange} onClear={()=>{setSelF(null);setFabricSeason("all");}}>
                   {/* 季節篩選 */}
                   <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
                     {SEASON_CATS.map(c=>{
@@ -1756,12 +1779,21 @@ async function doUnlock(isAutoLogin = false) {
                         background:isActive?`${C.orange}33`:"transparent",
                         border:`1px solid ${isActive?C.orange:C.orange+"55"}`,
                         color:isActive?C.orange:C.orange+"AA",transition:"all 0.15s"
-                      }}>{c.label}<span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span></button>;
+                      }}>{(_lang==="en" && c.en) ? c.en : c.label}<span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span></button>;
                     })}
                   </div>
+                  
+                  {selF && (()=>{
+                    const item = DB.FABRIC && DB.FABRIC.find(x=>x.id===selF);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.orange}15`,border:`1px solid ${C.orange}33`,borderRadius:6,color:C.orange,marginBottom:6,lineHeight:1.5}}>
+                      🧵 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={filteredFabricList} value={selF} onChange={setSelF} accent={C.orange} />
                 </Sec>
-                <Sec title="② 下裝 BOTTOM" aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelB(null);setBottomSeason("all");}}>
+                <Sec title={uiLang==="zh"?"② 下裝 BOTTOM":"② Bottom"} aiCategory="bottom" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelB(null);setBottomSeason("all");}}>
                   {/* 季節篩選 */}
                   <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
                     {SEASON_CATS.map(c=>{
@@ -1775,9 +1807,18 @@ async function doUnlock(isAutoLogin = false) {
                       }}>{c.label}<span style={{marginLeft:3,fontSize:8,opacity:0.6}}>{cnt}</span></button>;
                     })}
                   </div>
+                  
+                  {selB && (()=>{
+                    const item = DB.BOTTOM && DB.BOTTOM.find(x=>x.id===selB);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.cyan}15`,border:`1px solid ${C.cyan}33`,borderRadius:6,color:C.cyan,marginBottom:6,lineHeight:1.5}}>
+                      👖 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={filteredBottomList} value={selB} onChange={setSelB} accent={C.cyan} />
                 </Sec>
-                <Sec title="③ 姿勢 POSE" aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelP(null);setShotFilter("all");}}>
+                <Sec title={uiLang==="zh"?"③ 姿勢 POSE":"③ Pose"} aiCategory="pose" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.cyan} onClear={()=>{setSelP(null);setShotFilter("all");}}>
                   {/* 景別篩選 */}
                   <div style={{marginBottom:6}}>
                     <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}}>
@@ -1803,9 +1844,18 @@ async function doUnlock(isAutoLogin = false) {
                       </div> : null;
                     })()}
                   </div>
+                  
+                  {selP && (()=>{
+                    const item = DB.POSE && DB.POSE.find(x=>x.id===selP);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.cyan}15`,border:`1px solid ${C.cyan}33`,borderRadius:6,color:C.cyan,marginBottom:6,lineHeight:1.5}}>
+                      🤸 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={filteredPoseList} value={selP} onChange={setSelP} accent={C.cyan} />
                 </Sec>
-                <Sec title="③+ 攝影視角 ANGLE" accentColor={"#22d3ee"} onClear={()=>{setSelAngle(null);setAngleCat("all");}}>
+                <Sec title={uiLang==="zh"?"③+ 攝影視角 ANGLE":"③+ Camera Angle"} accentColor={"#22d3ee"} onClear={()=>{setSelAngle(null);setAngleCat("all");}}>
                   {/* 分類標籤列 */}
                   <div style={{marginBottom:7}}>
                     <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
@@ -1824,7 +1874,7 @@ async function doUnlock(isAutoLogin = false) {
                     {selAngle && (()=>{
                       const ang = ANGLE_DB.find(x=>x.id===selAngle);
                       if(!ang) return null;
-                      const wLabel = ang.w>=1.4?"🔴 極強影響":ang.w>=1.3?"🟠 強影響":ang.w>=1.2?"🟡 中影響":"🟢 輕影響";
+                      const wLabel = ang.w>=1.4?"🔴 極強影響":ang.w>=1.3?uiLang==="zh"?uiLang==="zh"?"🟠 強影響":"🟠 Strong":"🟠 Strong":ang.w>=1.2?uiLang==="zh"?"🟡 中影響":"🟡 Medium":uiLang==="zh"?"🟢 輕影響":"🟢 Light";
                       return <div style={{fontSize:10,padding:"4px 8px",background:"#22d3ee15",border:"1px solid #22d3ee33",borderRadius:5,color:"#22d3ee",marginBottom:4}}>
                         ⚡ 視角權重 <b>{ang.w}</b> — {wLabel} | 對 AI 生圖構圖的影響力
                       </div>;
@@ -1832,7 +1882,7 @@ async function doUnlock(isAutoLogin = false) {
                   </div>
                   <DropSelect items={filteredAngleList} value={selAngle} onChange={setSelAngle} accent={"#22d3ee"} />
                 </Sec>
-                <Sec title="③++ 鞋款核心 SHOES" accentColor={"#f59e0b"} onClear={()=>{setSelShoe(null);setShoeCat("all");}}>
+                <Sec title={uiLang==="zh"?"③++ 鞋款核心 SHOES":"③++ Footwear"} accentColor={"#f59e0b"} onClear={()=>{setSelShoe(null);setShoeCat("all");}}>
                   {/* 分類標籤列 */}
                   <div style={{marginBottom:7}}>
                     <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
@@ -1857,33 +1907,56 @@ async function doUnlock(isAutoLogin = false) {
                   </div>
                   <DropSelect items={filteredShoeList} value={selShoe} onChange={setSelShoe} accent={"#f59e0b"} />
                 </Sec>
-                <Sec title="④ 妝容核心 MAKEUP" aiCategory="makeup" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.rose} onClear={()=>setSelM(null)}><DropSelect items={allM} value={selM} onChange={setSelM} accent={C.rose} /></Sec>
-                <Sec title="⑤ 表情核心 EXPRESSION" aiCategory="expr" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.pink} onClear={()=>{setSelExpr(null);setSelEmotion([]);}}>
+                <Sec title={uiLang==="zh"?"④ 妝容核心 MAKEUP":"④ Makeup"} aiCategory="makeup" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.rose} onClear={()=>setSelM(null)}><DropSelect items={allM} value={selM} onChange={setSelM} accent={C.rose} /></Sec>
+                <Sec title={uiLang==="zh"?"⑤ 表情核心 EXPRESSION":"⑤ Expression"} aiCategory="expr" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.pink} onClear={()=>{setSelExpr(null);setSelEmotion([]);}}>
+                  
+                  {selExpr && (()=>{
+                    const item = allExpr.find(x=>x.id===selExpr);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.pink}15`,border:`1px solid ${C.pink}33`,borderRadius:6,color:C.pink,marginBottom:6,lineHeight:1.5}}>
+                      💄 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={allExpr} value={selExpr} onChange={setSelExpr} accent={C.pink} />
                   <div style={{marginTop:10, padding:"10px 12px", background:`${C.pink}0A`, border:`1px solid ${C.pink}2E`, borderRadius:8}}>
                     <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:6}}>
-                      <span style={{fontSize:10, color:C.pink, fontWeight:700, letterSpacing:1}}>✦ 深度情緒細節 (可多選)</span>
+                      <span style={{fontSize:10, color:C.pink, fontWeight:700, letterSpacing:1}}>{_lang==="zh"?"✦ 深度情緒細節 (可多選)":"✦ Deep Emotion (Multi-select)"}</span>
                       <div style={{display:"flex", gap:5, alignItems:"center"}}>
                         {selEmotion.length>0&&<span style={{fontSize:9,color:`${C.pink}B3`,background:`${C.pink}1F`,padding:"1px 7px",borderRadius:8}}>已選 {selEmotion.length}</span>}
                         <button onClick={()=>{const s=[...allEmotion].sort(()=>0.5-Math.random());setSelEmotion(s.slice(0,3).map(e=>e.id));}} style={{background:"transparent",border:`1px solid ${C.pink}`,color:C.pink,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>✦ 抽3</button>
                       </div>
                     </div>
                     {(()=>{
-                      const groups=[ {key:"eye",label:"👁 眼神",ids:["em1","em2","em3","em4","em5","em6","em7","em8","em9","em10","em11","em12","em13","em14","em15","em16","em17","em18","em19","em20"]}, {key:"lip",label:"👄 唇部",ids:["em21","em22","em23","em24","em25","em26","em27","em28","em29","em30","em31","em32","em33","em34","em35"]}, {key:"face",label:"✨ 微表情",ids:["em36","em37","em38","em39","em40","em41","em42","em43","em44","em45","em46","em47","em48","em49","em50"]}, {key:"atm",label:"🌙 氛圍",ids:["em66","em67","em68","em69","em70","em71","em72","em73","em74","em75","em76","em77","em78","em79","em80"]} ];
+                      const groups=[ {key:"eye",label:_lang==="zh"?"👁 眼神":"👁 Eyes",ids:["em1","em2","em3","em4","em5","em6","em7","em8","em9","em10","em11","em12","em13","em14","em15","em16","em17","em18","em19","em20"]}, {key:"lip",label:uiLang==="zh"?"👄 唇部":"👄 Lips",ids:["em21","em22","em23","em24","em25","em26","em27","em28","em29","em30","em31","em32","em33","em34","em35"]}, {key:"face",label:uiLang==="zh"?"✨ 微表情":"✨ Micro-Exp",ids:["em36","em37","em38","em39","em40","em41","em42","em43","em44","em45","em46","em47","em48","em49","em50"]}, {key:"atm",label:uiLang==="zh"?"🌙 氛圍":"🌙 Mood",ids:["em66","em67","em68","em69","em70","em71","em72","em73","em74","em75","em76","em77","em78","em79","em80"]} ];
                       const [ag, setAg] = React.useState("eye"); const cur = groups.find(g=>g.key===ag)||groups[0]; const visible = allEmotion.filter(e=>cur.ids.includes(e.id));
                       return <>
                         <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:7}}>
-                          {groups.map(g=>{ const cnt = g.ids.filter(id=>selEmotion.includes(id)).length; return <button key={g.key} onClick={()=>setAg(g.key)} style={{ padding:"2px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:ag===g.key?`${C.pink}40`:cnt>0?`${C.pink}14`:"transparent", border:`1px solid ${ag===g.key?C.pink:cnt>0?`${C.pink}59`:"var(--border)"}`, color:ag===g.key?C.pink:cnt>0?`${C.pink}BF`:"var(--text)" }}>{g.label}{cnt>0?` ·${cnt}`:""}</button>; })}
+                          {groups.map(g=>{ const cnt = g.ids.filter(id=>selEmotion.includes(id)).length; return <button key={g.key} onClick={()=>setAg(g.key)} style={{ padding:"2px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:ag===g.key?`${C.pink}40`:cnt>0?`${C.pink}14`:"transparent", border:`1px solid ${ag===g.key?C.pink:cnt>0?`${C.pink}59`:"var(--border)"}`, color:ag===g.key?C.pink:cnt>0?`${C.pink}BF`:"var(--text)" }}>{(_lang==="en" && g.en) ? g.en : g.label}{cnt>0?` ·${cnt}`:""}</button>; })}
                         </div>
                         <div style={{display:"flex",flexWrap:"wrap",gap:3,maxHeight:130,overflowY:"auto",paddingRight:2}}>
-                          {visible.map(item=>{ const on=selEmotion.includes(item.id); return <button key={item.id} onClick={()=>setSelEmotion(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} title={item.en} style={{ background:on?`${C.pink}33`:"var(--card)", border:`1px solid ${on?C.pink:"var(--border)"}`, color:on?C.pink:"var(--text)", padding:"4px 9px",borderRadius:13,fontSize:11,cursor:"pointer",fontWeight:on?700:400,transition:"all 0.1s" }}>{item.label}</button>; })}
+                          {visible.map(item=>{ const on=selEmotion.includes(item.id); return <button key={item.id} onClick={()=>setSelEmotion(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} title={item.en} style={{ background:on?`${C.pink}33`:"var(--card)", border:`1px solid ${on?C.pink:"var(--border)"}`, color:on?C.pink:"var(--text)", padding:"4px 9px",borderRadius:13,fontSize:11,cursor:"pointer",fontWeight:on?700:400,transition:"all 0.1s" }}>{(_lang==="en" && item.en) ? item.en.split(",")[0].trim().substring(0,35) : item.label}</button>; })}
                         </div>
+                        {selEmotion.length > 0 && (
+                          <div style={{fontSize:10,background:`${C.pink}08`,border:`1px solid ${C.pink}25`,borderRadius:6,marginTop:6,overflow:"hidden"}}>
+                            {selEmotion.map((id,idx)=>{
+                              const em = allEmotion.find(x=>x.id===id);
+                              if(!em) return null;
+                              return <div key={id} style={{padding:"5px 10px",borderBottom:idx<selEmotion.length-1?`1px solid ${C.pink}20`:"none",lineHeight:1.5}}>
+                                <span style={{color:C.pink,fontWeight:700}}>👁 {(_lang==="en" && em.en) ? em.en.split(",")[0].trim().substring(0,40) : em.label}</span>
+                                <span style={{marginLeft:6,fontSize:9,opacity:0.7,fontStyle:"italic",color:C.pink}}>
+                                  {(_lang==="zh") ? (em.zh||"").substring(0,60)+(em.zh&&em.zh.length>60?"…":"") : (em.en||"").substring(0,70)+(em.en&&em.en.length>70?"…":"")}
+                                </span>
+                              </div>;
+                            })}
+                          </div>
+                        )}
                       </>;
                     })()}
                   </div>
                 </Sec>
 
-                <Sec title={`⑥ 角色綁定 ${isCloudMode?"(雲端模式已停用)":""}`} accentColor="var(--subtext)" onClear={()=>setSelChars([])} containerStyle={{marginBottom: 0}}>
+                <Sec title={_lang==="zh"?`⑥ 角色綁定 ${isCloudMode?"(雲端模式已停用)":""}`:(`⑥ Character Binding ${isCloudMode?"(Cloud mode disabled)":""}`)} accentColor="var(--subtext)" onClear={()=>setSelChars([])} containerStyle={{marginBottom: 0}}>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6, opacity:isCloudMode?0.3:1, pointerEvents:isCloudMode?"none":"auto"}}>
                     {Object.entries(mergedChars).map(([key,ch])=>(
                         <div key={key} style={{position:"relative", flex:"1 1 calc(33% - 6px)", minWidth:100}}>
@@ -1892,18 +1965,18 @@ async function doUnlock(isAutoLogin = false) {
                         </div>
                     ))}
                     <button onClick={()=>setShowCharForm(!showCharForm)} style={{flex:"1 1 100%", padding:"8px", background:"transparent", border:`1px dashed var(--subtext)`, borderRadius:8, color:"var(--text)", cursor:"pointer", fontSize:12, marginTop:4}}>
-                      {showCharForm ? "▲ 收起面板" : "＋ 新增角色"}
+                      {showCharForm ? uiLang==="zh"?"▲ 收起面板":"▲ Collapse" : "＋ 新增角色"}
                     </button>
                   </div>
                   {showCharForm && (
                     <div style={{marginTop: 10, padding: 12, background: "var(--inputBg)", border: `1px solid var(--border)`, borderRadius: 8}}>
                        <div style={{display:"flex", gap:8, marginBottom:8}}>
-                           <input placeholder="ID (如: amy)" value={newChar.id} onChange={e=>setNewChar({...newChar, id: e.target.value})} style={{flex:1, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, outline:"none"}}/>
-                           <input placeholder="顯示名稱" value={newChar.name} onChange={e=>setNewChar({...newChar, name: e.target.value})} style={{flex:1, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, outline:"none"}}/>
-                           <input type="color" value={newChar.color} onChange={e=>setNewChar({...newChar, color: e.target.value})} style={{width:35, height:30, padding:0, border:"none", background:"transparent", cursor:"pointer"}} title="代表色"/>
+                           <input placeholder={_lang==="zh"?"ID (如: amy)":"ID (e.g. amy)"} value={newChar.id} onChange={e=>setNewChar({...newChar, id: e.target.value})} style={{flex:1, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, outline:"none"}}/>
+                           <input placeholder={_lang==="zh"?"顯示名稱":"Display Name"} value={newChar.name} onChange={e=>setNewChar({...newChar, name: e.target.value})} style={{flex:1, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, outline:"none"}}/>
+                           <input type="color" value={newChar.color} onChange={e=>setNewChar({...newChar, color: e.target.value})} style={{width:35, height:30, padding:0, border:"none", background:"transparent", cursor:"pointer"}} title={_lang==="zh"?"代表色":"Color"}/>
                        </div>
-                       <textarea placeholder="英文設定" value={newChar.en} onChange={e=>setNewChar({...newChar, en: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
-                       <textarea placeholder="中文設定" value={newChar.zh} onChange={e=>setNewChar({...newChar, zh: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
+                       <textarea placeholder={_lang==="zh"?"英文設定":"EN Config"} value={newChar.en} onChange={e=>setNewChar({...newChar, en: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
+                       <textarea placeholder={_lang==="zh"?"中文設定":"ZH Config"} value={newChar.zh} onChange={e=>setNewChar({...newChar, zh: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
                        <button onClick={handleAddCustomChar} style={{width:"100%", padding:"8px", background:C.cyan, color:"#000", border:"none", borderRadius:4, fontWeight:"bold", cursor:"pointer"}}>💾 儲存並加入</button>
                     </div>
                   )}
@@ -1912,12 +1985,21 @@ async function doUnlock(isAutoLogin = false) {
               
               {/* === 右側欄位 === */}
               <div style={{display: "flex", flexDirection: "column"}}>
-                <Sec title="⑦ 光線條件 LIGHTING" aiCategory="light" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.yellow} onClear={()=>{setSelL(null); setLightContrast(50);}}>
+                <Sec title={uiLang==="zh"?"⑦ 光線條件 LIGHTING":"⑦ Lighting"} aiCategory="light" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.yellow} onClear={()=>{setSelL(null); setLightContrast(50);}}>
+                  
+                  {selL && (()=>{
+                    const item = DB.LIGHT && DB.LIGHT.find(x=>x.id===selL);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.yellow}15`,border:`1px solid ${C.yellow}33`,borderRadius:6,color:C.yellow,marginBottom:6,lineHeight:1.5}}>
+                      💡 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={allL} value={selL} onChange={setSelL} accent={C.yellow} />
                   <div style={{marginTop:10, padding:"10px 12px", background:`${C.yellow}0A`, border:`1px solid ${C.yellow}26`, borderRadius:8}}>
                     <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
-                      <span style={{fontSize:10, color:C.yellow, fontWeight:700, letterSpacing:1.5}}>🎬 光影強度 / 戲劇對比</span>
-                      <span style={{fontSize:9, color:C.yellow, background:`${C.yellow}1A`, padding:"2px 6px", borderRadius:4, fontWeight:700}}>{lightContrast <= 15 ? "☁️ 極柔夢幻" : lightContrast <= 30 ? "🌥 柔和低調" : lightContrast <= 45 ? "🌤 均衡自然" : lightContrast <= 55 ? "⚖️ 電影標準" : lightContrast <= 70 ? "🌩 強化對比" : lightContrast <= 85 ? "⚡ 戲劇高反差" : "🔥 極限暴力光"} ({lightContrast})</span>
+                      <span style={{fontSize:10, color:C.yellow, fontWeight:700, letterSpacing:1.5}}>{_lang==="zh"?"🎬 光影強度 / 戲劇對比":"🎬 Light Intensity / Drama"}</span>
+                      <span style={{fontSize:9, color:C.yellow, background:`${C.yellow}1A`, padding:"2px 6px", borderRadius:4, fontWeight:700}}>{lightContrast <= 15 ? uiLang==="zh"?"☁️ 極柔夢幻":"☁️ Dreamy" : lightContrast <= 30 ? uiLang==="zh"?"🌥 柔和低調":"🌥 Soft" : lightContrast <= 45 ? uiLang==="zh"?"🌤 均衡自然":"🌤 Natural" : lightContrast <= 55 ? uiLang==="zh"?"⚖️ 電影標準":"⚖️ Cinematic" : lightContrast <= 70 ? uiLang==="zh"?"🌩 強化對比":"🌩 Contrast" : lightContrast <= 85 ? uiLang==="zh"?"⚡ 戲劇高反差":"⚡ Dramatic" : uiLang==="zh"?"🔥 極限暴力光":"🔥 Extreme"} ({lightContrast})</span>
                     </div>
                     <div style={{display:"flex", alignItems:"center", gap:10}}>
                       <span style={{fontSize:9, color:"var(--subtext)", whiteSpace:"nowrap"}}>柔和夢幻</span>
@@ -1927,7 +2009,7 @@ async function doUnlock(isAutoLogin = false) {
                   </div>
                 </Sec>
 
-                <Sec title="⑧ 場景 SCENE" aiCategory="scene" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.purple} onClear={()=>{ setSelS(null); setSceneCat("all"); }}>
+                <Sec title={uiLang==="zh"?"⑧ 場景 SCENE":"⑧ Scene"} aiCategory="scene" onAIGenerate={handleAIGenerate} onCustomAdd={handleCustomAdd} accentColor={C.purple} onClear={()=>{ setSelS(null); setSceneCat("all"); }}>
                   {/* ── 分類標籤列 ── */}
                   {SCENE_CATS_DB.length > 0 && (()=>{
                     return <div style={{marginBottom:8}}>
@@ -1944,15 +2026,24 @@ async function doUnlock(isAutoLogin = false) {
                             transition:"all 0.15s",
                             fontStyle: isMatrix ? "italic" : "normal"
                           }}>
-                            {c.label}
+                            {(_lang==="en" && c.en) ? c.en : c.label}
                             {c.key !== "all" && <span style={{marginLeft:2, fontSize:8, opacity:0.55, fontStyle:"normal"}}>{cnt}</span>}
                           </button>;
                         })}
                       </div>
                       <div style={{fontSize:10, color:"var(--subtext)", letterSpacing:0.3}}>
-                        顯示 <span style={{color:C.purple, fontWeight:700}}>{filteredSceneList.length}</span> 個場景
-                        {sceneCat !== "all" && <span style={{marginLeft:6, opacity:0.6}}>（全部 {sceneList.length}）</span>}
+                        {_lang==="zh"?"顯示 ":"Showing "}<span style={{color:C.purple, fontWeight:700}}>{filteredSceneList.length}</span>{_lang==="zh"?" 個場景":" scenes"}
+                        {sceneCat !== "all" && <span style={{marginLeft:6, opacity:0.6}}>{_lang==="zh"?"（全部 ":"(Total: "}{sceneList.length}{_lang==="zh"?"）":")"}</span>}
                       </div>
+                    </div>;
+                  })()}
+                  
+                  {selS && (()=>{
+                    const item = sceneList.find(x=>x.id===selS);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.purple}15`,border:`1px solid ${C.purple}33`,borderRadius:6,color:C.purple,marginBottom:6,lineHeight:1.5}}>
+                      🌍 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
                     </div>;
                   })()}
                   <DropSelect items={filteredSceneList} value={selS} onChange={setSelS} accent={C.purple} />
@@ -1960,50 +2051,64 @@ async function doUnlock(isAutoLogin = false) {
                 
                 <div style={{background:"var(--card)", border:`1px solid ${C.purple}40`, borderRadius:9, padding:"11px 13px", marginBottom:8}}>
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:6}}>
-                    <div style={{fontSize:11, color:C.purple, letterSpacing:2, fontWeight:700, textTransform:"uppercase"}}>⑨ 飾品配件 ACCESSORIES (多選)</div>
+                    <div style={{fontSize:11, color:C.purple, letterSpacing:2, fontWeight:700, textTransform:"uppercase"}}>{_lang==="zh"?"⑨ 飾品配件 ACCESSORIES (多選)":"⑨ Accessories (Multi-Select)"}</div>
                     <div style={{display:"flex", gap:5, alignItems:"center"}}>
                       {selA.length>0&&<span style={{fontSize:9,color:`${C.purple}B3`,background:`${C.purple}1F`,padding:"1px 7px",borderRadius:8}}>已選 {selA.length}</span>}
-                      <button onClick={()=>{const g=ACC_GROUPS[Math.floor(Math.random()*ACC_GROUPS.length)];if(!g)return;const ids=g.ids;const pick=ids[Math.floor(Math.random()*ids.length)];setSelA(p=>p.includes(pick)?p:[...p,pick]);}} style={{background:"transparent",border:`1px solid ${C.purple}`,color:C.purple,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>✦ 隨機加一</button>
-                      <button onClick={()=>setSelA([])} style={{background:"transparent",border:"1px solid var(--subtext)",color:"var(--text)",padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer"}}>✕ 清空此區</button>
+                      <button onClick={()=>{const g=ACC_GROUPS[Math.floor(Math.random()*ACC_GROUPS.length)];if(!g)return;const ids=g.ids;const pick=ids[Math.floor(Math.random()*ids.length)];setSelA(p=>p.includes(pick)?p:[...p,pick]);}} style={{background:"transparent",border:`1px solid ${C.purple}`,color:C.purple,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 隨機加一":"✦ Random +"}</button>
+                      <button onClick={()=>setSelA([])} style={{background:"transparent",border:"1px solid var(--subtext)",color:"var(--text)",padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer"}}>{_lang==="zh"?"✕ 清空此區":"✕ Clear"}</button>
                     </div>
                   </div>
                   {(()=>{
                     const [ag, setAg] = React.useState("ear"); const curGroup = ACC_GROUPS.find(g=>g.key===ag) || ACC_GROUPS[0]; const visibleAcc = curGroup ? allA.filter(a => curGroup.ids.includes(a.id)) : [];
                     return <>
                       <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>
-                        {ACC_GROUPS.map(g=>{ const cnt = g.ids.filter(id=>selA.includes(id)).length; return <button key={g.key} onClick={()=>setAg(g.key)} style={{ padding:"3px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:ag===g.key?`${C.purple}40`:cnt>0?`${C.purple}14`:"transparent", border:`1px solid ${ag===g.key?C.purple:cnt>0?`${C.purple}59`:"var(--border)"}`, color:ag===g.key?C.purple:cnt>0?`${C.purple}BF`:"var(--text)" }}>{g.label}{cnt>0?` ·${cnt}`:""}</button>; })}
+                        {ACC_GROUPS.map(g=>{ const cnt = g.ids.filter(id=>selA.includes(id)).length; return <button key={g.key} onClick={()=>setAg(g.key)} style={{ padding:"3px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:ag===g.key?`${C.purple}40`:cnt>0?`${C.purple}14`:"transparent", border:`1px solid ${ag===g.key?C.purple:cnt>0?`${C.purple}59`:"var(--border)"}`, color:ag===g.key?C.purple:cnt>0?`${C.purple}BF`:"var(--text)" }}>{(_lang==="en" && g.en) ? g.en : g.label}{cnt>0?` ·${cnt}`:""}</button>; })}
                       </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:3,minHeight:40}}>
-                        {visibleAcc.map(item=>{ const on=selA.includes(item.id); return <button key={item.id} onClick={()=>setSelA(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} title={item.en} style={{ background:on?`${C.purple}33`:"var(--card)", border:`1px solid ${on?C.purple:"var(--border)"}`, color:on?C.purple:"var(--text)", padding:"5px 10px",borderRadius:15,fontSize:11,cursor:"pointer",fontWeight:on?700:400 }}>{item.label}</button>; })}
+                        {visibleAcc.map(item=>{ const on=selA.includes(item.id); return <button key={item.id} onClick={()=>setSelA(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} title={item.en} style={{ background:on?`${C.purple}33`:"var(--card)", border:`1px solid ${on?C.purple:"var(--border)"}`, color:on?C.purple:"var(--text)", padding:"5px 10px",borderRadius:15,fontSize:11,cursor:"pointer",fontWeight:on?700:400 }}>{(_lang==="en" && item.en) ? item.en.split(",")[0].trim().substring(0,35) : item.label}</button>; })}
                       </div>
+                      {selA.length > 0 && (
+                        <div style={{fontSize:10,background:`${C.purple}08`,border:`1px solid ${C.purple}25`,borderRadius:6,marginTop:6,overflow:"hidden"}}>
+                          {selA.map((id,idx)=>{
+                            const item = (DB.ACC||[]).find(x=>x.id===id);
+                            if(!item) return null;
+                            return <div key={id} style={{padding:"5px 10px",borderBottom:idx<selA.length-1?`1px solid ${C.purple}20`:"none",lineHeight:1.5}}>
+                              <span style={{color:C.purple,fontWeight:700}}>💍 {(_lang==="en" && item.en) ? item.en.split(",")[0].trim().substring(0,40) : item.label}</span>
+                              <span style={{marginLeft:6,fontSize:9,opacity:0.7,fontStyle:"italic",color:C.purple}}>
+                                {(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}
+                              </span>
+                            </div>;
+                          })}
+                        </div>
+                      )}
                     </>;
                   })()}
                 </div>
                 
-                <Sec title={`⑩ 超級視覺張力 ${isCloudMode?"(雲端安全)":""}`} accentColor={isCloudMode?"var(--subtext)":C.green} onClear={()=>setSelBra([])} actionNode={
+                <Sec title={_lang==="zh"?`⑩ 超級視覺張力 ${isCloudMode?"(雲端安全)":""}`:(`⑩ Tension Physics ${isCloudMode?"(Cloud Safe)":""}`)} accentColor={isCloudMode?"var(--subtext)":C.green} onClear={()=>setSelBra([])} actionNode={
                   <div style={{display:"flex",gap:4,alignItems:"center"}}>
                     <span style={{fontSize:9,color:"var(--subtext)",fontFamily:"monospace"}}>{selBra.length>0?`已選${selBra.length}`:""}</span>
-                    <button onClick={drawRandomTensions} style={{background:"transparent",border:`1px solid ${isCloudMode?"var(--subtext)":C.green}`,color:isCloudMode?"var(--text)":C.green,padding:"2px 8px",borderRadius:4,fontSize:10,cursor:"pointer",fontWeight:700}}>✦ 抽5項</button>
+                    <button onClick={drawRandomTensions} style={{background:"transparent",border:`1px solid ${isCloudMode?"var(--subtext)":C.green}`,color:isCloudMode?"var(--text)":C.green,padding:"2px 8px",borderRadius:4,fontSize:10,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 抽5項":"✦ Draw 5"}</button>
                   </div>
                 } containerStyle={{flex:1,display:"flex",flexDirection:"column",marginBottom:0}}>
                 {(()=>{
                   // ── 分類定義 ──
                   const BRA_CATS = [
-                    { key:"all",   label:"🌐 全部",     color: C.green },
-                    { key:"prose", label:"📝 原始散文",  color:"#e8a838", badge:"原有" },
-                    { key:"univ",  label:"🧲 通用物理",  color:"#6af7c4", badge:"新增" },
-                    { key:"緊",    label:"🔥 緊·張力",   color:"#ff6b35", badge:"原有" },
-                    { key:"透",    label:"🌊 透·穿透",   color:"#00d4ff", badge:"原有" },
-                    { key:"覆",    label:"🪐 覆·貼合",   color:"#a855f7", badge:"原有" },
-                    { key:"疊",    label:"📐 疊·突起",   color:"#f76ab4", badge:"新增" },
-                    { key:"細",    label:"✨ 細·質感",   color:"#ffd700", badge:"原有" },
+                    { key:"all",   label:uiLang==="zh"?"🌐 全部":"🌐 All",     color: C.green },
+                    { key:"prose", label:uiLang==="zh"?"📝 原始散文":"📝 Raw Prose",  color:"#e8a838", badge:uiLang==="zh"?"原有":"Keep" },
+                    { key:"univ",  label:_lang==="zh"?"🧲 通用物理":"🧲 Universal",  color:"#6af7c4", badge:uiLang==="zh"?"新增":"Add" },
+                    { key:"緊",    label:_lang==="zh"?"🔥 緊·張力":"🔥 Tight·Tension",   color:"#ff6b35", badge:uiLang==="zh"?"原有":"Keep" },
+                    { key:"透",    label:_lang==="zh"?"🌊 透·穿透":"🌊 Sheer·Through",   color:"#00d4ff", badge:uiLang==="zh"?"原有":"Keep" },
+                    { key:"覆",    label:_lang==="zh"?"🪐 覆·貼合":"🪐 Cling·Conform",   color:"#a855f7", badge:uiLang==="zh"?"原有":"Keep" },
+                    { key:"疊",    label:_lang==="zh"?"📐 疊·突起":"📐 Layer·Relief",   color:"#f76ab4", badge:uiLang==="zh"?"新增":"Add" },
+                    { key:"細",    label:_lang==="zh"?"✨ 細·質感":"✨ Fine·Texture",   color:"#ffd700", badge:uiLang==="zh"?"原有":"Keep" },
                   ];
                   // Weight badge config
                   const wBadge = w => {
-                    if(w >= 1.5) return { label:"◉1.5", color:"#ff4444", title:"核心輸出 — AI必須清晰呈現" };
-                    if(w >= 1.4) return { label:"◎1.4", color:"#ff8c00", title:"重要現象 — 強化呈現" };
-                    if(w >= 1.3) return { label:"○1.3", color:"#ffd700", title:"輔助質感 — 自然呈現" };
-                    return       { label:"·1.2",  color:"#888",    title:"情境背景 — 輕量引導" };
+                    if(w >= 1.5) return { label:"◉1.5", color:"#ff4444", title:uiLang==="zh"?"核心輸出 — AI必須清晰呈現":"Core — Must Show" };
+                    if(w >= 1.4) return { label:"◎1.4", color:"#ff8c00", title:uiLang==="zh"?"重要現象 — 強化呈現":"Important — Enhance" };
+                    if(w >= 1.3) return { label:"○1.3", color:"#ffd700", title:uiLang==="zh"?"輔助質感 — 自然呈現":"Assist — Natural" };
+                    return       { label:"·1.2",  color:"#888",    title:uiLang==="zh"?"情境背景 — 輕量引導":"Context — Light" };
                   };
 
                   const [braCat, setBraCat] = React.useState("all");
@@ -2019,7 +2124,7 @@ async function doUnlock(isAutoLogin = false) {
                       {BRA_CATS.map(c=>{
                         const isActive = braCat===c.key;
                         const cnt = c.key==="all" ? BRA_DB.length : BRA_DB.filter(b=>b.cat===c.key).length;
-                        const isNew = c.badge==="新增";
+                        const isNew = c.badge===uiLang==="zh"?"新增":"Add";
                         return <button key={c.key} onClick={()=>setBraCat(c.key)} style={{
                           padding:"3px 7px", borderRadius:9, fontSize:10, cursor:"pointer", fontWeight:700,
                           background: isActive?`${c.color}33`:"transparent",
@@ -2028,7 +2133,7 @@ async function doUnlock(isAutoLogin = false) {
                           transition:"all 0.15s", position:"relative"
                         }}>
                           {c.label}
-                          {c.badge==="新增" && <span style={{fontSize:8,marginLeft:3,background:"#f76ab433",color:"#f76ab4",padding:"0 3px",borderRadius:3,border:"1px solid #f76ab466"}}>新</span>}
+                          {c.badge===uiLang==="zh"?"新增":"Add" && <span style={{fontSize:8,marginLeft:3,background:"#f76ab433",color:"#f76ab4",padding:"0 3px",borderRadius:3,border:"1px solid #f76ab466"}}>新</span>}
                           <span style={{fontSize:8,marginLeft:2,opacity:0.6}}>{cnt}</span>
                         </button>;
                       })}
@@ -2037,12 +2142,12 @@ async function doUnlock(isAutoLogin = false) {
                     {/* ── 圖例說明列 ── */}
                     <div style={{display:"flex",gap:8,alignItems:"center",padding:"4px 6px",background:"var(--card)",borderRadius:6,flexWrap:"wrap"}}>
                       <span style={{fontSize:9,color:"var(--subtext)"}}>權重：</span>
-                      {[{w:1.5,label:"◉1.5 核心"},{w:1.4,label:"◎1.4 重要"},{w:1.3,label:"○1.3 輔助"}].map(({w,label})=>{
+                      {[{w:1.5,label:_lang==="zh"?"◉1.5 核心":"◉1.5 Core"},{w:1.4,label:_lang==="zh"?"◎1.4 重要":"◎1.4 Key"},{w:1.3,label:_lang==="zh"?"○1.3 輔助":"○1.3 Assist"}].map(({w,label})=>{
                         const wb=wBadge(w);
                         return <span key={w} style={{fontSize:9,color:wb.color,fontFamily:"monospace"}} title={wb.title}>{label}</span>;
                       })}
                       <span style={{fontSize:9,color:"#666",marginLeft:4}}>│</span>
-                      <span style={{fontSize:9,color:"#f76ab4",fontFamily:"monospace"}}>新 = v9.2新增</span>
+                      <span style={{fontSize:9,color:"#f76ab4",fontFamily:"monospace"}}>{_lang==="zh"?"新 = v9.2新增":"new = v9.2+"}</span>
                       <span style={{fontSize:9,color:C.green,marginLeft:"auto",fontFamily:"monospace"}}>{filtered.length} 條</span>
                     </div>
 
@@ -2057,10 +2162,12 @@ async function doUnlock(isAutoLogin = false) {
                         const catC = (BRA_CATS.find(c=>c.key===b.cat)||BRA_CATS[0]).color;
 
                         // Label extraction
-                        let labelText = b.zh||"";
-                        if(labelText.includes(" — ")) labelText = labelText.split(" — ")[0];
-                        else if(labelText.includes("，")) labelText = labelText.split("，")[0];
-                        if(labelText.length > 16) labelText = labelText.substring(0,16)+"…";
+                        let labelText = (_lang==="en" && b.en) ? b.en.split(",")[0].trim().substring(0,35)+"…" : (b.zh||"");
+                        if(_lang!=="en") {
+                          if(labelText.includes(" — ")) labelText = labelText.split(" — ")[0];
+                          else if(labelText.includes("，")) labelText = labelText.split("，")[0];
+                          if(labelText.length > 16) labelText = labelText.substring(0,16)+"…";
+                        }
 
                         return <button key={id} onClick={()=>setSelBra(p=>sel?p.filter(k=>k!==id):[...p,id])} title={b.zh}
                           style={{
@@ -2111,34 +2218,52 @@ async function doUnlock(isAutoLogin = false) {
 
             <div style={{background:`${C.rose}0A`,border:`1px solid ${C.rose}26`,borderRadius:10,padding:"15px",marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:11,color:C.rose,letterSpacing:2,fontWeight:700}}>✂️ ⑪ 2026 流行沙龍髮型 SALON HAIR (可混搭)</div>
-                <button onClick={()=>{setSelHairStyle(null);setSelHairColor(null);}} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>✕ 清空此區</button>
+                <div style={{fontSize:11,color:C.rose,letterSpacing:2,fontWeight:700}}>{_lang==="zh"?"✂️ ⑪ 2026 流行沙龍髮型 SALON HAIR (可混搭)":"✂️ ⑪ 2026 Salon Hair (Mix & Match)"}</div>
+                <button onClick={()=>{setSelHairStyle(null);setSelHairColor(null);}} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>{_lang==="zh"?"✕ 清空此區":"✕ Clear"}</button>
               </div>
               
               <div style={{marginBottom: 12}}>
-                <div style={{fontSize:10, color:"var(--subtext)", marginBottom:6}}>A. 髮型結構 (Style)</div>
+                <div style={{fontSize:10, color:"var(--subtext)", marginBottom:6}}>{_lang==="zh"?"A. 髮型結構 (Style)":"A. Hair Style"}</div>
                 {(()=>{
-                  const hGroups=[ {key:"sh", label:"✂️ 基礎短/中", range:[1,40]}, {key:"mn", label:"🕴️ 男士", range:[41,50]}, {key:"pm", label:"☁️ 基礎燙髮", range:[51,70]}, {key:"sf", label:"🛸 科幻/Y3K", range:[121,140]}, {key:"tr1", label:"✨ 26高定", range:[141,165]}, {key:"tr2", label:"👑 Runway", range:[166,210]} ];
+                  const hGroups=[ {key:"sh", label:uiLang==="zh"?"✂️ 基礎短/中":"✂️ Short/Mid", range:[1,40]}, {key:"mn", label:uiLang==="zh"?"🕴️ 男士":"🕴️ Men", range:[41,50]}, {key:"pm", label:uiLang==="zh"?"☁️ 基礎燙髮":"☁️ Perm", range:[51,70]}, {key:"sf", label:uiLang==="zh"?"🛸 科幻/Y3K":"🛸 Sci-Fi", range:[121,140]}, {key:"tr1", label:uiLang==="zh"?"✨ 26高定":"✨ 2026 HF", range:[141,165]}, {key:"tr2", label:"👑 Runway", range:[166,210]} ];
                   const [hg, setHg] = React.useState("sh"); const curHg = hGroups.find(g=>g.key===hg)||hGroups[0]; const visibleHair = HAIR_DB.filter(o=>{ const n=parseInt(o.id.replace("hr","")); return n>=curHg.range[0] && n<=curHg.range[1]; });
                   return <>
                     <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>
                       {hGroups.map(g=>{ const isSel=HAIR_DB.filter(o=>{const n=parseInt(o.id.replace("hr",""));return n>=g.range[0]&&n<=g.range[1];}).some(o=>o.id===selHairStyle); return <button key={g.key} onClick={()=>setHg(g.key)} style={{ padding:"3px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:hg===g.key?`${C.rose}38`:isSel?`${C.rose}14`:"transparent", border:`1px solid ${hg===g.key?C.rose:isSel?`${C.rose}66`:"var(--border)"}`, color:hg===g.key?C.rose:isSel?`${C.rose}CC`:"var(--text)" }}>{g.label}{isSel?" ✓":""}</button>; })}
                     </div>
-                    <DropSelect items={visibleHair} value={selHairStyle || ""} onChange={e => setSelHairStyle(e || null)} accent={C.rose} placeholder={`── 請選擇髮型設計 (${visibleHair.length} 項) ──`} />
+                    
+                  {selHairStyle && (()=>{
+                    const item = HAIR_DB.find(x=>x.id===selHairStyle);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.rose}15`,border:`1px solid ${C.rose}33`,borderRadius:6,color:C.rose,marginBottom:6,lineHeight:1.5}}>
+                      ✂️ <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
+                  <DropSelect items={visibleHair} value={selHairStyle || ""} onChange={e => setSelHairStyle(e || null)} accent={C.rose} placeholder={_lang==="zh"?`── 請選擇髮型設計 (${visibleHair.length} 項) ──`:`── Select Hair (${visibleHair.length}) ──`} />
                   </>;
                 })()}
               </div>
 
               <div>
-                <div style={{fontSize:10, color:"var(--subtext)", marginBottom:6}}>B. 髮色與漸層 (Color)</div>
+                <div style={{fontSize:10, color:"var(--subtext)", marginBottom:6}}>{_lang==="zh"?"B. 髮色與漸層 (Color)":"B. Hair Color"}</div>
                 {(()=>{
-                  const cGroups=[ {key:"hl",label:"✨ 刷畫挑染",range:[71,90]}, {key:"cl",label:"🎨 髮色設計",range:[91,110]}, {key:"gr",label:"🌈 漸層髮色",range:[111,120]} ];
+                  const cGroups=[ {key:"hl",label:uiLang==="zh"?"✨ 刷畫挑染":"✨ Highlight",range:[71,90]}, {key:"cl",label:uiLang==="zh"?"🎨 髮色設計":"🎨 Color Design",range:[91,110]}, {key:"gr",label:uiLang==="zh"?"🌈 漸層髮色":"🌈 Gradient",range:[111,120]} ];
                   const [cg, setCg] = React.useState("cl"); const curCg = cGroups.find(g=>g.key===cg)||cGroups[0]; const visibleColor = HAIR_DB.filter(o=>{ const n=parseInt(o.id.replace("hr","")); return n>=curCg.range[0] && n<=curCg.range[1]; });
                   return <>
                     <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>
                       {cGroups.map(g=>{ const isSel=HAIR_DB.filter(o=>{const n=parseInt(o.id.replace("hr",""));return n>=g.range[0]&&n<=g.range[1];}).some(o=>o.id===selHairColor); return <button key={g.key} onClick={()=>setCg(g.key)} style={{ padding:"3px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:cg===g.key?`${C.rose}38`:isSel?`${C.rose}14`:"transparent", border:`1px solid ${cg===g.key?C.rose:isSel?`${C.rose}66`:"var(--border)"}`, color:cg===g.key?C.rose:isSel?`${C.rose}CC`:"var(--text)" }}>{g.label}{isSel?" ✓":""}</button>; })}
                     </div>
-                    <DropSelect items={visibleColor} value={selHairColor || ""} onChange={e => setSelHairColor(e || null)} accent={C.rose} placeholder={`── 請選擇髮色渲染 (${visibleColor.length} 項) ──`} />
+                    
+                  {selHairColor && (()=>{
+                    const item = HAIR_DB.find(x=>x.id===selHairColor);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.rose}15`,border:`1px solid ${C.rose}33`,borderRadius:6,color:C.rose,marginBottom:6,lineHeight:1.5}}>
+                      🎨 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
+                  <DropSelect items={visibleColor} value={selHairColor || ""} onChange={e => setSelHairColor(e || null)} accent={C.rose} placeholder={_lang==="zh"?`── 請選擇髮色渲染 (${visibleColor.length} 項) ──`:`── Select Color (${visibleColor.length}) ──`} />
                   </>;
                 })()}
               </div>
@@ -2146,8 +2271,8 @@ async function doUnlock(isAutoLogin = false) {
 
             <div style={{background:`${C.orange}0A`,border:`1px solid ${C.orange}26`,borderRadius:10,padding:"15px",marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:11,color:C.orange,letterSpacing:2,fontWeight:700}}>✦ ⑫ 風格趨勢速選庫 OUTFIT STYLE (250組)</div>
-                {selOutfitStyle&&<button onClick={()=>setSelOutfitStyle(null)} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>✕ 清空此區</button>}
+                <div style={{fontSize:11,color:C.orange,letterSpacing:2,fontWeight:700}}>{_lang==="zh"?"✦ ⑫ 風格趨勢速選庫 OUTFIT STYLE (250組)":"✦ ⑫ Style Presets OUTFIT STYLE (250)"}</div>
+                {selOutfitStyle&&<button onClick={()=>setSelOutfitStyle(null)} style={{background:"transparent",border:`1px solid var(--subtext)`,color:"var(--text)",padding:"3px 8px",borderRadius:4,fontSize:10,cursor:"pointer"}}>{_lang==="zh"?"✕ 清空此區":"✕ Clear"}</button>}
               </div>
               {(()=>{
                 const osGroups=[ {key:"ql",label:"💎 Quiet Luxury",range:[1,20]}, {key:"coq",label:"🎀 Coquette",range:[21,35]}, {key:"y2k",label:"✨ Y2K",range:[36,50]}, {key:"str",label:"🛹 Streetwear",range:[51,65]}, {key:"drk",label:"📚 Dark Academia",range:[66,80]}, {key:"bar",label:"🩷 Barbiecore",range:[81,90]}, {key:"tec",label:"⚡ Techwear",range:[91,100]}, {key:"bal",label:"🩰 Ballet/Sport",range:[96,103]}, {key:"kr",label:"🇰🇷 Korean",range:[101,115]}, {key:"res",label:"🌊 Resort/Boho",range:[116,125]}, {key:"ret",label:"🕰 Vintage/Retro",range:[121,130]}, {key:"mob",label:"🐆 Mob Wife",range:[151,158]}, {key:"fst",label:"🎪 Festival",range:[210,215]}, {key:"eve",label:"🌙 Date/Evening",range:[179,186]}, {key:"hol",label:"🎉 Holiday",range:[246,250]}, {key:"mix",label:"🎨 Mix & Edit",range:[223,250]} ];
@@ -2156,9 +2281,18 @@ async function doUnlock(isAutoLogin = false) {
                   <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>
                     {osGroups.map(g=>{ const isSel=OUTFIT_STYLE_DB.filter(o=>{const n=parseInt(o.id.replace("os",""));return n>=g.range[0]&&n<=g.range[1];}).some(o=>o.id===selOutfitStyle); return <button key={g.key} onClick={()=>setOsg(g.key)} style={{ padding:"3px 8px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:700, background:osg===g.key?`${C.orange}38`:isSel?`${C.orange}14`:"transparent", border:`1px solid ${osg===g.key?C.orange:isSel?`${C.orange}66`:"var(--border)"}`, color:osg===g.key?C.orange:isSel?`${C.orange}CC`:"var(--text)" }}>{g.label}{isSel?" ✓":""}</button>; })}
                   </div>
+                  
+                  {selOutfitStyle && (()=>{
+                    const item = OUTFIT_STYLE_DB && OUTFIT_STYLE_DB.find(x=>x.id===selOutfitStyle);
+                    if(!item) return null;
+                    return <div style={{fontSize:10,padding:"5px 10px",background:`${C.orange}15`,border:`1px solid ${C.orange}33`,borderRadius:6,color:C.orange,marginBottom:6,lineHeight:1.5}}>
+                      👗 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim() : item.label}</b>
+                      <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
+                    </div>;
+                  })()}
                   <DropSelect items={visibleOs} value={selOutfitStyle || ""} onChange={e => setSelOutfitStyle(e || null)} accent={C.orange} placeholder={`── 請選擇風格 (${visibleOs.length} 項) ──`} />
                   <div style={{marginTop:6,display:"flex",gap:6,justifyContent:"flex-end"}}>
-                    <button onClick={()=>setSelOutfitStyle(OUTFIT_STYLE_DB[Math.floor(Math.random()*OUTFIT_STYLE_DB.length)]?.id||null)} style={{background:"transparent",border:`1px solid ${C.orange}`,color:C.orange,padding:"2px 8px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>✦ 隨機抽風格</button>
+                    <button onClick={()=>setSelOutfitStyle(OUTFIT_STYLE_DB[Math.floor(Math.random()*OUTFIT_STYLE_DB.length)]?.id||null)} style={{background:"transparent",border:`1px solid ${C.orange}`,color:C.orange,padding:"2px 8px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 隨機抽風格":"✦ Random Style"}</button>
                   </div>
                 </>;
               })()}
@@ -2167,88 +2301,144 @@ async function doUnlock(isAutoLogin = false) {
             <div style={{ background: `linear-gradient(135deg, ${C.cloud}11, ${C.purple}11)`, border: `1px solid ${C.cloud}4D`, borderRadius: 12, padding: "16px", marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div style={{ fontSize: 14, color: C.cloud, fontWeight: 900, letterSpacing: 2, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{fontSize:18}}>✨</span> ⑬ Gemini 生圖格式專用區塊
+                  <span style={{fontSize:18}}>✨</span>{_lang==="zh"?"⑬ Gemini 生圖格式專用區塊":"⑬ Gemini Image Format Block"}
                 </div>
                 <button onClick={clearGeminiSection} style={{ background: "transparent", border: `1px solid ${C.cloud}`, color: C.cloud, padding: "4px 10px", borderRadius: "6px", fontSize: "11px", cursor: "pointer", fontWeight: "bold", transition: "all 0.2s" }} onMouseOver={e => e.target.style.background = `${C.cloud}33`} onMouseOut={e => e.target.style.background = 'transparent'}>
-                  ✕ 清空此區
+                  {_lang==="zh"?"✕ 清空此區":"✕ Clear"}
                 </button>
               </div>
 
               <div style={{background:`${C.cyan}0D`,border:`1px solid ${C.cyan}33`,borderRadius:10,padding:"12px 15px",marginBottom:12}}>
-                <div style={{fontSize:11,color:C.cyan,letterSpacing:2,fontWeight:700,marginBottom:8}}>🖼️ 影像參考強制指令 (最優先前綴)</div>
+                <div style={{fontSize:11,color:C.cyan,letterSpacing:2,fontWeight:700,marginBottom:8}}>{_lang==="zh"?"🖼️ 影像參考強制指令 (最優先前綴)":"🖼️ Image Reference Commands (Highest Priority)"}</div>
                 <div style={{display:"flex", gap:10, flexWrap:"wrap"}}>
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refOutfit?`${C.cyan}33`:"var(--card)", border:`1px solid ${refOutfit?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refOutfit?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refOutfit} onChange={e=>setRefOutfit(e.target.checked)} style={{accentColor:C.cyan}}/> 依照服裝參考圖：</label>
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refPose?`${C.cyan}33`:"var(--card)", border:`1px solid ${refPose?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refPose?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refPose} onChange={e=>setRefPose(e.target.checked)} style={{accentColor:C.cyan}}/> 依照參考圖：精準模仿相同姿勢</label>
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refScene?`${C.cyan}33`:"var(--card)", border:`1px solid ${refScene?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refScene?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refScene} onChange={e=>setRefScene(e.target.checked)} style={{accentColor:C.cyan}}/> 依照參考圖場景：讓人物在場景中生成</label>
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCharacter?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCharacter?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCharacter?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refCharacter} onChange={e=>setRefCharacter(e.target.checked)} style={{accentColor:C.cyan}}/> 讓參考圖的人物融入提示詞生成出對應的圖片</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refOutfit?`${C.cyan}33`:"var(--card)", border:`1px solid ${refOutfit?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refOutfit?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refOutfit} onChange={e=>setRefOutfit(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"依照服裝參考圖：":"Follow outfit reference:"}</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refPose?`${C.cyan}33`:"var(--card)", border:`1px solid ${refPose?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refPose?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refPose} onChange={e=>setRefPose(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"依照參考圖：精準模仿相同姿勢":"Follow pose reference exactly"}</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refScene?`${C.cyan}33`:"var(--card)", border:`1px solid ${refScene?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refScene?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refScene} onChange={e=>setRefScene(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"依照參考圖場景：讓人物在場景中生成":"Place character in reference scene"}</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCharacter?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCharacter?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCharacter?C.cyan:"var(--subtext)"}}><input type="checkbox" checked={refCharacter} onChange={e=>setRefCharacter(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"讓參考圖的人物融入提示詞生成出對應的圖片":"Merge reference character into prompt"}</label>
                   
                   {/* V10.2 新增: 抱狗自拍與場景 */}
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refDogSelfie?`${C.cyan}33`:"var(--card)", border:`1px solid ${refDogSelfie?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refDogSelfie?C.cyan:"var(--subtext)", fontWeight:refDogSelfie?"bold":"normal"}}><input type="checkbox" checked={refDogSelfie} onChange={e=>setRefDogSelfie(e.target.checked)} style={{accentColor:C.cyan}}/> 🐶 強制：抱狗自拍與場景</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refDogSelfie?`${C.cyan}33`:"var(--card)", border:`1px solid ${refDogSelfie?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refDogSelfie?C.cyan:"var(--subtext)", fontWeight:refDogSelfie?"bold":"normal"}}><input type="checkbox" checked={refDogSelfie} onChange={e=>setRefDogSelfie(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"🐶 強制：抱狗自拍與場景":"🐶 Force: Dog Selfie + Scene"}</label>
                   
                   {/* V10.2 新增: 啦啦隊妝容 */}
-                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCheerMakeup?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCheerMakeup?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCheerMakeup?C.cyan:"var(--subtext)", fontWeight:refCheerMakeup?"bold":"normal"}}><input type="checkbox" checked={refCheerMakeup} onChange={e=>setRefCheerMakeup(e.target.checked)} style={{accentColor:C.cyan}}/> ✨ 自訂啦啦隊妝容</label>
+                  <label style={{display:"flex", alignItems:"center", gap:6, cursor:"pointer", background:refCheerMakeup?`${C.cyan}33`:"var(--card)", border:`1px solid ${refCheerMakeup?C.cyan:"var(--border)"}`, padding:"6px 12px", borderRadius:6, fontSize:12, color:refCheerMakeup?C.cyan:"var(--subtext)", fontWeight:refCheerMakeup?"bold":"normal"}}><input type="checkbox" checked={refCheerMakeup} onChange={e=>setRefCheerMakeup(e.target.checked)} style={{accentColor:C.cyan}}/>{_lang==="zh"?"✨ 自訂啦啦隊妝容":"✨ Custom Cheer Makeup"}</label>
                 </div>
+                {(refOutfit||refPose||refScene||refCharacter||refDogSelfie||refCheerMakeup) && (
+                  <div style={{marginTop:8,fontSize:10,padding:"6px 12px",background:`${C.cyan}12`,border:`1px solid ${C.cyan}33`,borderRadius:6,color:C.cyan,lineHeight:1.8}}>
+                    <span style={{fontWeight:700}}>{_lang==="zh"?"✅ 已啟用參考圖模式：":"✅ Reference mode active: "}</span>
+                    {[
+                      refOutfit && (_lang==="zh"?"依照服裝參考圖":"Outfit reference"),
+                      refPose && (_lang==="zh"?"精準模仿姿勢":"Pose reference"),
+                      refScene && (_lang==="zh"?"場景參考":"Scene reference"),
+                      refCharacter && (_lang==="zh"?"人物融入":"Character merge"),
+                      refDogSelfie && (_lang==="zh"?"抱狗自拍":"Dog selfie"),
+                      refCheerMakeup && (_lang==="zh"?"啦啦隊妝容":"Cheer makeup"),
+                    ].filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </div>
 
               <div style={{background:`${C.orange}0A`,border:`1px solid ${C.orange}26`,borderRadius:10,padding:"15px",marginBottom:12}}>
-                <div style={{fontSize:11,color:C.orange,letterSpacing:2,fontWeight:700,marginBottom:10}}>🎬 導演指令 DIRECTOR SETTINGS <span style={{fontSize:9, color:"var(--subtext)", fontWeight:"normal"}}>(按一下選取，再按一下取消)</span></div>
+                <div style={{fontSize:11,color:C.orange,letterSpacing:2,fontWeight:700,marginBottom:10}}>{_lang==="zh"?"🎬 導演指令 ":"🎬 "}DIRECTOR SETTINGS <span style={{fontSize:9, color:"var(--subtext)", fontWeight:"normal"}}>{_lang==="zh"?"(按一下選取，再按一下取消)":"(click to toggle)"}</span></div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                   <div style={{gridColumn:"1/-1"}}>
-                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:5}}>① 人物細節參考設定</div>
+                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:5}}>{_lang==="zh"?"① 人物細節參考設定":"① Character Reference"}</div>
                     <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>前綴</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_prefix.map(item=><SelBtn key={item.id} item={item} selected={selRefPrefix} onSelect={id=>setSelRefPrefix(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
-                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>動作</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_core.map(item=><SelBtn key={item.id} item={item} selected={selRefCore} onSelect={id=>setSelRefCore(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
-                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>後綴</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_suffix.map(item=><SelBtn key={item.id} item={item} selected={selRefSuffix} onSelect={id=>setSelRefSuffix(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
+                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>{_lang==="zh"?"前綴":"Prefix"}</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_prefix.map(item=><SelBtn key={item.id} item={item} selected={selRefPrefix} onSelect={id=>setSelRefPrefix(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
+                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>{_lang==="zh"?"動作":"Action"}</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_core.map(item=><SelBtn key={item.id} item={item} selected={selRefCore} onSelect={id=>setSelRefCore(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
+                      <div><div style={{fontSize:10,color:"var(--subtext)",marginBottom:3}}>{_lang==="zh"?"後綴":"Suffix"}</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.ref_suffix.map(item=><SelBtn key={item.id} item={item} selected={selRefSuffix} onSelect={id=>setSelRefSuffix(p=>p===id?null:id)} color={C.orange}/>)}</div></div>
                     </div>
                   </div>
                   <div>
-                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:5}}>② 畫面格式 & 人物佔比</div>
+                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:5}}>{_lang==="zh"?"② 畫面格式 & 人物佔比":"② Frame & Subject Ratio"}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>
                       {DIRECTION_DB.ratio.map(item=><SelBtn key={item.id} item={item} selected={selRatio} onSelect={id=>setSelRatio(p=>p===id?null:id)} color={C.cyan}/>)}
                       {DIRECTION_DB.person_size.map(item=><SelBtn key={item.id} item={item} selected={selPersonSize} onSelect={id=>setSelPersonSize(p=>p===id?null:id)} color={C.cyan}/>)}
                     </div>
                   </div>
                   <div style={{gridColumn:"1/-1"}}>
-                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:8}}>③ 構圖 & 攝影技法</div>
+                    <div style={{fontSize:11,color:"var(--subtext)",marginBottom:8}}>{_lang==="zh"?"③ 構圖 & 攝影技法":"③ Composition & Technique"}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>
                       {allCompRule.map(item=><SelBtn key={item.id} item={item} selected={selCompRule} onSelect={id=>setSelCompRule(p=>p===id?null:id)} color={C.purple}/>)}
                     </div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{DIRECTION_DB.comp_bg.map(item=><SelBtn key={item.id} item={item} selected={selCompBg} onSelect={id=>setSelCompBg(p=>p===id?null:id)} color={C.purple}/>)}</div>
                   </div>
                 </div>
+                {/* Director all-selection preview */}
+                {(()=>{
+                  const allDirItems = [
+                    ...(DIRECTION_DB.ref_prefix||[]), ...(DIRECTION_DB.ref_core||[]), ...(DIRECTION_DB.ref_suffix||[]),
+                    ...(DIRECTION_DB.ratio||[]), ...(DIRECTION_DB.person_size||[]),
+                    ...allCompRule, ...(DIRECTION_DB.comp_bg||[])
+                  ];
+                  const selIds = [selRefPrefix, selRefCore, selRefSuffix, selRatio, selPersonSize, selCompRule, selCompBg].filter(Boolean);
+                  const selItems = selIds.map(id => allDirItems.find(x=>x.id===id)).filter(Boolean);
+                  if(selItems.length === 0) return null;
+                  return <div style={{fontSize:10,background:`${C.orange}08`,border:`1px solid ${C.orange}25`,borderRadius:6,marginTop:8,overflow:"hidden"}}>
+                    {selItems.map((item, idx)=>(
+                      <div key={item.id} style={{padding:"5px 12px",borderBottom:idx<selItems.length-1?`1px solid ${C.orange}20`:"none",lineHeight:1.5}}>
+                        <span style={{color:C.orange,fontWeight:700}}>🎬 {(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].replace(/^\(+/,"").trim().substring(0,45) : item.label}</span>
+                        <span style={{marginLeft:6,fontSize:9,opacity:0.7,fontStyle:"italic",color:C.orange}}>
+                          {(_lang==="zh") ? (item.zh||"").substring(0,65)+(item.zh&&item.zh.length>65?"…":"") : (item.en||"").substring(0,75)+(item.en&&item.en.length>75?"…":"")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>;
+                })()}
               </div>
 
               <div style={{background:`${C.cloud}1A`,border:`1px solid ${C.cloud}4D`,borderRadius:10,padding:"15px"}}>
-                <div style={{fontSize:11,color:C.cloud,letterSpacing:2,fontWeight:700,marginBottom:10}}>📷 專業焦段與連貫性分鏡 LENS & CONTINUITY</div>
+                <div style={{fontSize:11,color:C.cloud,letterSpacing:2,fontWeight:700,marginBottom:10}}>{_lang==="zh"?"📷 專業焦段與連貫性分鏡 ":"📷 "}LENS & CONTINUITY</div>
                 
-                <div style={{fontSize:10,color:"var(--subtext)",marginBottom:4}}>基礎質感與光線 (可多選)</div>
+                <div style={{fontSize:10,color:"var(--subtext)",marginBottom:4}}>{_lang==="zh"?"基礎質感與光線 (可多選)":"Base Quality & Lighting (multi)"}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>
                   {GEMINI_BASE.map(item=>{
                     const on = selGeminiBase.includes(item.id);
-                    return <button key={item.id} onClick={()=>setSelGeminiBase(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} style={{ background:on?`${C.cloud}33`:"var(--card)", border:`1px solid ${on?C.cloud:"var(--border)"}`, color:on?C.cloud:"var(--text)", padding:"4px 9px",borderRadius:13,fontSize:11,cursor:"pointer",fontWeight:on?700:400 }}>{on?"✓ ":""}{item.label}</button>;
+                    return <button key={item.id} onClick={()=>setSelGeminiBase(p=>on?p.filter(k=>k!==item.id):[...p,item.id])} style={{ background:on?`${C.cloud}33`:"var(--card)", border:`1px solid ${on?C.cloud:"var(--border)"}`, color:on?C.cloud:"var(--text)", padding:"4px 9px",borderRadius:13,fontSize:11,cursor:"pointer",fontWeight:on?700:400 }}>{on?"✓ ":""}{(_lang==="en" && item.en) ? item.en.split(",")[0].split(":")[0].trim() : item.label}</button>;
                   })}
                 </div>
+                {selGeminiBase.length > 0 && (()=>{
+                  const last = GEMINI_BASE.find(x=>x.id===selGeminiBase[selGeminiBase.length-1]);
+                  if(!last) return null;
+                  return <div style={{fontSize:10,padding:"4px 10px",background:`${C.cloud}15`,border:`1px solid ${C.cloud}33`,borderRadius:5,color:C.cloud,marginBottom:8,lineHeight:1.5}}>
+                    ✓ <b>{(_lang==="en" && last.en) ? last.en : last.label}</b>
+                  </div>;
+                })()}
 
-                <div style={{fontSize:10,color:"var(--subtext)",marginBottom:4}}>鏡頭語言與焦段 (單選)</div>
+                <div style={{fontSize:10,color:"var(--subtext)",marginBottom:4}}>{_lang==="zh"?"鏡頭語言與焦段 (單選)":"Lens & Focal Length (single)"}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>
                   {GEMINI_LENS.map(item=><SelBtn key={item.id} item={item} selected={selGeminiLens} onSelect={id=>setSelGeminiLens(p=>p===id?null:id)} color={C.cloud}/>)}
                 </div>
+                {selGeminiLens && (()=>{
+                  const item = GEMINI_LENS.find(x=>x.id===selGeminiLens);
+                  if(!item) return null;
+                  return <div style={{fontSize:10,padding:"4px 10px",background:`${C.cloud}15`,border:`1px solid ${C.cloud}33`,borderRadius:5,color:C.cloud,marginBottom:8,lineHeight:1.5}}>
+                    🔭 <b>{(_lang==="en" && item.en) ? item.en.split(":")[0].trim() : item.label}</b>
+                    <span style={{marginLeft:6,opacity:0.7,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60) : (item.en||"").substring(40,100)}</span>
+                  </div>;
+                })()}
 
-                <div style={{fontSize:10,color:C.rose,marginBottom:4,fontWeight:"bold"}}>🎬 連續生圖專用指令 (延續上圖 / 單選)</div>
+                <div style={{fontSize:10,color:C.rose,marginBottom:4,fontWeight:"bold"}}>{_lang==="zh"?"🎬 連續生圖專用指令 (延續上圖 / 單選)":"🎬 Continuity Commands (Extend / Single)"}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                   {GEMINI_CONT.map(item=><SelBtn key={item.id} item={item} selected={selGeminiCont} onSelect={id=>setSelGeminiCont(p=>p===id?null:id)} color={C.rose}/>)}
                 </div>
-              </div>
-            </div>
+                {selGeminiCont && (()=>{
+                  const item = GEMINI_CONT.find(x=>x.id===selGeminiCont);
+                  if(!item) return null;
+                  return <div style={{fontSize:10,padding:"4px 10px",background:`${C.rose}15`,border:`1px solid ${C.rose}33`,borderRadius:5,color:C.rose,marginTop:6,lineHeight:1.5}}>
+                    🎬 <b>{(_lang==="en" && item.en) ? item.en.split(",")[0].trim().substring(0,50) : item.label}</b>
+                    <span style={{marginLeft:6,opacity:0.7,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60) : (item.en||"").substring(0,70)}</span>
+                  </div>;
+                })()}
+              </div></div>
 
             <button onClick={gen} disabled={loading} style={{width:"100%",padding:16,background:loading?"var(--border)":isCloudMode?`linear-gradient(135deg,${C.cloud},${C.cyan})`:isRunningHubMode?`linear-gradient(135deg,${C.rhGold},#c8860a)`:`linear-gradient(135deg,${C.cyan},${C.purple})`,border:"none",borderRadius:10,color:"#fff",fontSize:16,fontWeight:800,letterSpacing:3,cursor:loading?"not-allowed":"pointer",marginBottom:12}}>
-              {loading?"⟳ 生成中...":isCloudMode?"◈ 產生雲端安全咒語":isRunningHubMode?"⚡ 產生 Z-image 咒語 (RunningHub 新王登基)":"◈ 產生本地硬核咒語"}
+              {loading?uiLang==="zh"?"⟳ 生成中...":"⟳ Generating...":isCloudMode?uiLang==="zh"?"◈ 產生雲端安全咒語":"◈ Generate Cloud Prompt":isRunningHubMode?uiLang==="zh"?"⚡ 產生 Z-image 咒語":"⚡ Generate Z-image":uiLang==="zh"?"◈ 產生本地硬核咒語":"◈ Generate Local Prompt"}
             </button>
 
             {result&&<div>
-              <div style={{fontSize:11, color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green, marginBottom:8, letterSpacing:1}}>{isCloudMode ? "☁️ 已啟用雲端破防模式：自動掛載隱性浮雕微陰影咒語" : isRunningHubMode ? "⚡ Z-image 新王登基模式：點擊正向提示詞右側按鈕送至 RunningHub 算圖" : "✔ 已自動植入: sks_salon, sks_je, IPD 1:1, 滿血物理張力詞"}</div>
-              <PromptCard title="＋ 正向提示詞 POSITIVE" titleColor={isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green} content={prompts.pos} onExpand={lang=>handleExpand("pos",lang)} expanding={expandingState.pos_zh||expandingState.pos_en} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} cloudApiKey={cloudApiKey} C={C}/>
-              <PromptCard title="－ 負向提示詞 NEGATIVE" titleColor={C.red} content={prompts.neg} C={C}/>
+              <div style={{fontSize:11, color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green, marginBottom:8, letterSpacing:1}}>{isCloudMode ? uiLang==="zh"?"☁️ 已啟用雲端破防模式：自動掛載隱性浮雕微陰影咒語":"☁️ Cloud mode: shadow tags injected" : isRunningHubMode ? "⚡ Z-image 新王登基模式：點擊正向提示詞右側按鈕送至 RunningHub 算圖" : "✔ 已自動植入: sks_salon, sks_je, IPD 1:1, 滿血物理張力詞"}</div>
+              <PromptCard title={uiLang==="zh"?"＋ 正向提示詞 POSITIVE":"＋ Positive Prompt"} titleColor={isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green} content={prompts.pos} onExpand={lang=>handleExpand("pos",lang)} expanding={expandingState.pos_zh||expandingState.pos_en} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} cloudApiKey={cloudApiKey} C={C}/>
+              <PromptCard title={uiLang==="zh"?"－ 負向提示詞 NEGATIVE":"－ Negative Prompt"} titleColor={C.red} content={prompts.neg} C={C}/>
               {selChars.map(charId => {
                   const p = prompts[charId]; const ch = mergedChars[charId]; if (!p || (!p.zh && !p.en)) return null;
                   return <PromptCard key={charId} title={`◆ ${ch.name}`} titleColor={ch.color} content={p} onExpand={lang=>handleExpand(charId,lang)} expanding={expandingState[`${charId}_zh`]||expandingState[`${charId}_en`]} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} C={C}/>;
@@ -2278,13 +2468,13 @@ async function doUnlock(isAutoLogin = false) {
                 onClick={()=>setShowStoryboard(p=>!p)}
                 style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"rgba(167,139,250,0.07)",cursor:"pointer",userSelect:"none"}}
               >
-                <span style={{color:"#a78bfa",fontWeight:"bold",fontSize:13,letterSpacing:1}}>🎬 AI 分鏡 Prompt 生成器</span>
+                <span style={{color:"#a78bfa",fontWeight:"bold",fontSize:13,letterSpacing:1}}>{_lang==="zh"?"🎬 AI 分鏡 Prompt 生成器":"🎬 AI Storyboard"}</span>
                 <div style={{display:"flex",gap:8,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
                   {/* 模式切換 */}
                   {[
-                    {key:"video", label:"🎥 影片分鏡"},
-                    {key:"image", label:"🖼 文生圖分鏡"},
-                    {key:"flow",  label:"🌊 Flow格式"}
+                    {key:"video", label:_lang==="zh"?"🎥 影片分鏡":"🎥 Video"},
+                    {key:"image", label:_lang==="zh"?"🖼 文生圖分鏡":"🖼 Image"},
+                    {key:"flow",  label:_lang==="zh"?"🌊 Flow格式":"🌊 Flow"}
                   ].map(({key,label})=>(
                     <button key={key} onClick={()=>setStoryboardMode(key)} style={{
                       padding:"2px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",
@@ -2299,7 +2489,7 @@ async function doUnlock(isAutoLogin = false) {
                     style={{padding:"3px 12px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isGenStoryboard?"wait":"pointer",
                       background:isGenStoryboard?"rgba(167,139,250,0.2)":"rgba(167,139,250,0.15)",
                       border:"1px solid #a78bfa",color:"#a78bfa"}}
-                  >{isGenStoryboard?"⏳ 生成中...":"✨ 生成分鏡"}</button>
+                  >{isGenStoryboard?uiLang==="zh"?"⏳ 生成中...":"⏳ Generating...":uiLang==="zh"?"✨ 生成分鏡":"✨ Generate"}</button>
                   <span style={{color:"#a78bfa",fontSize:12,opacity:0.7}} onClick={()=>setShowStoryboard(p=>!p)}>{showStoryboard?"▲":"▼"}</span>
                 </div>
               </div>
@@ -2321,7 +2511,7 @@ async function doUnlock(isAutoLogin = false) {
                   <textarea
                     value={storyboardOutline}
                     onChange={e=>setStoryboardOutline(e.target.value)}
-                    placeholder={"【故事大綱】（選填，留空則從目前提示詞延伸）\n例：女孩在黃昏的城市漫步，進入咖啡廳，窗邊對視，微笑離去..."}
+                    placeholder={_lang==="zh"?"【故事大綱】（選填，留空則從目前提示詞延伸）\n例：女孩在黃昏的城市漫步，進入咖啡廳，窗邊對視，微笑離去...":"[Story Outline] (optional)\nEx: A girl walks city streets at dusk, enters a café, makes eye contact with a stranger...離去..."}
                     rows={4}
                     style={{width:"100%",padding:"10px 12px",background:"var(--inputBg)",border:"1px solid #a78bfa44",borderRadius:8,color:"var(--text)",fontSize:12,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"sans-serif",lineHeight:1.7}}
                   />
@@ -2351,7 +2541,7 @@ async function doUnlock(isAutoLogin = false) {
                   <textarea
                     value={storyboardOutline}
                     onChange={e=>setStoryboardOutline(e.target.value)}
-                    placeholder={"【內容大綱】\n例：一個女孩在雨夜的城市街道獨自行走，進入咖啡廳，與陌生男子對視，離開時回頭...\n\n可加入：場景描述、角色特徵、情緒轉變、時間推進等"}
+                    placeholder={_lang==="zh"?"【內容大綱】\n例：一個女孩在雨夜的城市街道獨自行走，進入咖啡廳，與陌生男子對視，離開時回頭...\n\n可加入：場景描述、角色特徵、情緒轉變、時間推進等":"[Story Outline]\nEx: A girl walks rainy city streets alone at night, enters a café, makes eye contact with a stranger...\n\nAdd: scene, characters, mood shifts, time progression"}
                     rows={5}
                     style={{width:"100%",padding:"10px 12px",background:"var(--inputBg)",border:"1px solid #a78bfa44",borderRadius:8,color:"var(--text)",fontSize:12,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"sans-serif",lineHeight:1.7}}
                   />
@@ -2381,8 +2571,8 @@ async function doUnlock(isAutoLogin = false) {
 
                   {/* 影片分鏡結果 */}
                   {storyboardResult.mode==="video" && [
-                    {label:"🎥 KlingAI 格式",key:"kling",color:"#22d3ee"},
-                    {label:"🌊 Hailuo 格式",key:"hailuo",color:"#50c070"}
+                    {label:_lang==="zh"?"🎥 KlingAI 格式":"🎥 KlingAI Format",key:"kling",color:"#22d3ee"},
+                    {label:_lang==="zh"?"🌊 Hailuo 格式":"🌊 Hailuo Format",key:"hailuo",color:"#50c070"}
                   ].map(({label,key,color})=>(
                     storyboardResult[key] ? (
                       <div key={key} style={{border:("1px solid "+color+"33"),borderRadius:8,overflow:"hidden",marginBottom:10}}>
@@ -2414,7 +2604,7 @@ async function doUnlock(isAutoLogin = false) {
                             disabled={translatingScene !== null}
                             style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
                               background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee"+(translatingScene!==null?"":"88"),color:translatingScene!==null?"#22d3ee":"#22d3ee99"}}>
-                            {translatingScene !== null ? "⏳ 翻譯中..." : "🌐 全部翻譯中文"}
+                            {translatingScene !== null ? uiLang==="zh"?"⏳ 翻譯中...":"⏳ Translating..." : uiLang==="zh"?"🌐 全部翻譯中文":"🌐 Translate All"}
                           </button>
                         </div>
                       </div>
@@ -2430,23 +2620,23 @@ async function doUnlock(isAutoLogin = false) {
                             {/* 操作按鈕 */}
                             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                               <button onClick={()=>navigator.clipboard.writeText(scene)}
-                                title="複製英文 Prompt"
+                                title={_lang==="zh"?"複製英文 Prompt":"Copy EN Prompt"}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #a78bfa55",color:"#a78bfa99"}}>
                                 📋 EN
                               </button>
                               <button onClick={()=>translateScene(scene, i)}
                                 disabled={translatingScene !== null}
-                                title="翻譯此場景為中文"
+                                title={_lang==="zh"?"翻譯此場景為中文":"Translate to ZH"}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,
                                   cursor:translatingScene===i?"wait":translatingScene!==null?"not-allowed":"pointer",
                                   background:sceneTranslations[i]?"rgba(34,211,238,0.18)":"rgba(34,211,238,0.08)",
                                   border:"1px solid #22d3ee"+(sceneTranslations[i]?"":"66"),
                                   color:sceneTranslations[i]?"#22d3ee":"#22d3ee88"}}>
-                                {translatingScene===i ? "⏳" : "🌐 譯ZH"}
+                                {translatingScene===i ? "⏳" : uiLang==="zh"?"🌐 譯ZH":"🌐 Trans"}
                               </button>
                               {sceneTranslations[i] && (
                                 <button onClick={()=>navigator.clipboard.writeText(sceneTranslations[i])}
-                                  title="複製中文翻譯"
+                                  title={_lang==="zh"?"複製中文翻譯":"Copy ZH"}
                                   style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee",color:"#22d3ee"}}>
                                   📋 ZH
                                 </button>
@@ -2455,7 +2645,7 @@ async function doUnlock(isAutoLogin = false) {
                                   window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(scene);
                                   navigator.clipboard.writeText(scene);
                                 }}
-                                title="填入自訂欄送出算圖"
+                                title={_lang==="zh"?"填入自訂欄送出算圖":"Fill Custom → Send"}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.18)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
                                 ✏️ 填入自訂欄
                               </button>
@@ -2477,7 +2667,7 @@ async function doUnlock(isAutoLogin = false) {
                               <button
                                 onClick={()=>{ handleRunningHubSend(scene); }}
                                 disabled={isComfyGenerating}
-                                title="直接用此分鏡 Prompt 送至 RunningHub 算圖"
+                                title={_lang==="zh"?"直接用此分鏡 Prompt 送至 RunningHub 算圖":"Send to RunningHub"}
                                 style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isComfyGenerating?"not-allowed":"pointer",
                                   background:"rgba(201,168,76,0.15)",border:"1px solid #c9a84c",color:"#c9a84c"}}>
                                 ⚡ RunningHub
@@ -2487,7 +2677,7 @@ async function doUnlock(isAutoLogin = false) {
                               <button
                                 onClick={()=>{ handleComfySend(scene, ""); }}
                                 disabled={isComfyGenerating}
-                                title="直接用此分鏡 Prompt 送至本地 ComfyUI 算圖"
+                                title={_lang==="zh"?"直接用此分鏡 Prompt 送至本地 ComfyUI 算圖":"Send to ComfyUI"}
                                 style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:isComfyGenerating?"not-allowed":"pointer",
                                   background:"rgba(80,200,100,0.15)",border:"1px solid #50c070",color:"#50c070"}}>
                                 🚀 ComfyUI
@@ -2496,14 +2686,14 @@ async function doUnlock(isAutoLogin = false) {
                             {isCloudMode && (
                               <button
                                 onClick={()=>{ handleCloudGenerate(scene); }}
-                                title="直接用此分鏡 Prompt 送至 Gemini Imagen 算圖"
+                                title={_lang==="zh"?"直接用此分鏡 Prompt 送至 Gemini Imagen 算圖":"Send to Imagen"}
                                 style={{padding:"4px 14px",fontSize:11,fontWeight:700,borderRadius:6,cursor:"pointer",
                                   background:"rgba(99,179,237,0.15)",border:"1px solid #63b3ed",color:"#63b3ed"}}>
                                 ☁️ Imagen
                               </button>
                             )}
                             <span style={{fontSize:9,color:"#a78bfa44",marginLeft:"auto"}}>
-                              {isComfyGenerating ? "⏳ 算圖中..." : "點擊直接生成此場景"}
+                              {isComfyGenerating ? uiLang==="zh"?uiLang==="zh"?"⏳ 算圖中...":"⏳ Generating...":"⏳ Generating..." : uiLang==="zh"?"點擊直接生成此場景":"Click to generate"}
                             </span>
                           </div>
                         </div>
@@ -2520,7 +2710,7 @@ async function doUnlock(isAutoLogin = false) {
                           <button onClick={translateAllScenes} disabled={translatingScene!==null}
                             style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
                               background:"rgba(34,211,238,0.1)",border:"1px solid #22d3ee"+(translatingScene!==null?"":"88"),color:translatingScene!==null?"#22d3ee":"#22d3ee99"}}>
-                            {translatingScene!==null?"⏳ 翻譯中...":"🌐 全部翻譯中文"}
+                            {translatingScene!==null?uiLang==="zh"?"⏳ 翻譯中...":"⏳ Translating...":uiLang==="zh"?"🌐 全部翻譯中文":"🌐 Translate All"}
                           </button>
                           <button onClick={()=>{
                               const all = storyboardResult.scenes.map((s,idx2)=>"[Scene "+(idx2+1)+"]\n"+s).join("\n\n");
@@ -2547,7 +2737,7 @@ async function doUnlock(isAutoLogin = false) {
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene===i?"wait":"pointer",
                                   background:sceneTranslations[i]?"rgba(34,211,238,0.18)":"rgba(34,211,238,0.08)",
                                   border:"1px solid #22d3ee"+(sceneTranslations[i]?"":"66"),color:sceneTranslations[i]?"#22d3ee":"#22d3ee88"}}>
-                                {translatingScene===i?"⏳":"🌐 譯ZH"}
+                                {translatingScene===i?"⏳":uiLang==="zh"?"🌐 譯ZH":"🌐 Trans"}
                               </button>
                               {sceneTranslations[i] && <button onClick={()=>navigator.clipboard.writeText(sceneTranslations[i])}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(34,211,238,0.12)",border:"1px solid #22d3ee",color:"#22d3ee"}}>📋 ZH</button>}
@@ -2580,7 +2770,7 @@ async function doUnlock(isAutoLogin = false) {
                 onClick={()=>setShowHistory(p=>!p)}
                 style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"rgba(201,168,76,0.07)",cursor:"pointer",userSelect:"none"}}
               >
-                <span style={{color:"#c9a84c",fontWeight:"bold",fontSize:13,letterSpacing:1}}>📚 提示詞歷史紀錄</span>
+                <span style={{color:"#c9a84c",fontWeight:"bold",fontSize:13,letterSpacing:1}}>{_lang==="zh"?"📚 提示詞歷史紀錄":"📚 Prompt History"}</span>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{fontSize:10,color:"#c9a84c88"}}>{promptHistory.length} 筆</span>
                   <button onClick={e=>{e.stopPropagation();exportHistory();}} style={{padding:"2px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #c9a84c66",color:"#c9a84c"}}>📥 CSV</button>
@@ -2590,7 +2780,7 @@ async function doUnlock(isAutoLogin = false) {
               {showHistory && (
                 <div style={{padding:12,background:"var(--card)"}}>
                   <input type="text" value={historySearch} onChange={e=>setHistorySearch(e.target.value)}
-                    placeholder="🔍 搜尋提示詞內容..."
+                    placeholder={uiLang==="zh"?"🔍 搜尋提示詞內容...":"🔍 Search history..."}
                     style={{width:"100%",padding:"7px 12px",background:"var(--inputBg)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text)",fontSize:12,outline:"none",marginBottom:8,boxSizing:"border-box"}}
                   />
                   {promptHistory.length === 0
@@ -2603,7 +2793,7 @@ async function doUnlock(isAutoLogin = false) {
                               <input
                                 type="text" value={h.name||""}
                                 onChange={e=>saveHistoryName(h.id, e.target.value)}
-                                placeholder={"📌 點擊命名... (" + h.ts + ")"}
+                                placeholder={_lang==="zh"?"📌 點擊命名... (":"📌 Click to name... (" + h.ts + ")"}
                                 style={{flex:1,minWidth:120,padding:"3px 8px",background:"transparent",border:"1px solid var(--border)",borderRadius:5,color:"#c9a84c",fontSize:11,outline:"none"}}
                               />
                               <div style={{display:"flex",gap:5}}>
@@ -2626,14 +2816,14 @@ async function doUnlock(isAutoLogin = false) {
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
                   <span style={{fontSize:20}}>{isCloudMode?"☁️":isRunningHubMode?"⚡":"🎨"}</span>
                   <span style={{color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green,fontWeight:800,fontSize:15,letterSpacing:1}}>
-                    {isCloudMode?"Google Imagen 3 雲端算圖引擎":isRunningHubMode?"RunningHub Z-image 新王登基算圖引擎":"ComfyUI 本地即時算圖引擎"}
+                    {isCloudMode?uiLang==="zh"?"Google Imagen 3 雲端算圖引擎":"Google Cloud Engine":isRunningHubMode?uiLang==="zh"?"RunningHub Z-image 新王登基算圖引擎":"RunningHub Cloud Engine":uiLang==="zh"?"ComfyUI 本地即時算圖引擎":"ComfyUI Local Engine"}
                   </span>
                 </div>
                 {isComfyGenerating && (
                   <div style={{marginBottom:10}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--subtext)",marginBottom:8,fontWeight:"bold"}}>
                       <span style={{color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}}>
-                        {isCloudMode?"⚡ 正在呼叫 Google API...":isRunningHubMode?(rhQueueStatus||"⚡ 正在呼叫 RunningHub Z-image，每4秒輪詢..."):"⚡ 正在與 RTX 5090 伺服器通訊..."}
+                        {isCloudMode?uiLang==="zh"?"⚡ 正在呼叫 Google API...":"⚡ Calling Google API...":isRunningHubMode?(rhQueueStatus||uiLang==="zh"?"⚡ 正在呼叫 RunningHub Z-image，每4秒輪詢...":"⚡ Calling RunningHub..."):uiLang==="zh"?"⚡ 正在與 RTX 5090 伺服器通訊...":"⚡ Connecting to ComfyUI..."}
                       </span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <span>{comfyProgress}%</span>
@@ -2655,7 +2845,7 @@ async function doUnlock(isAutoLogin = false) {
                       // 存檔：手機用 Web Share API，桌機用 a.download
                       const doSave = async (e) => {
                         const btn = e.currentTarget;
-                        btn.textContent = "⟳ 處理中..."; btn.disabled = true;
+                        btn.textContent = _lang==="zh"?"⟳ 處理中...":"⟳ Processing..."; btn.disabled = true;
                         try {
                           // 先取得 blob
                           let blob;
@@ -2678,10 +2868,10 @@ async function doUnlock(isAutoLogin = false) {
                             if (navigator.canShare({files:[file]})) {
                               await navigator.share({
                                 files: [file],
-                                title: "OPS 出圖",
+                                title: uiLang==="zh"?"OPS 出圖":"OPS Output",
                               });
-                              btn.textContent = "✓ 已分享";
-                              setTimeout(()=>{ btn.textContent = "⬇ 存圖"; btn.disabled = false; }, 2000);
+                              btn.textContent = _lang==="zh"?"✓ 已分享":"✓ Shared";
+                              setTimeout(()=>{ btn.textContent = uiLang==="zh"?"⬇ 存圖":"⬇ Save"; btn.disabled = false; }, 2000);
                               return;
                             }
                           }
@@ -2691,13 +2881,13 @@ async function doUnlock(isAutoLogin = false) {
                           const a = document.createElement("a");
                           a.href = u; a.download = fn; a.click();
                           setTimeout(()=> URL.revokeObjectURL(u), 3000);
-                          btn.textContent = "✓ 已存檔";
-                          setTimeout(()=>{ btn.textContent = "⬇ 存圖"; btn.disabled = false; }, 2000);
+                          btn.textContent = uiLang==="zh"?"✓ 已存檔":"✓ Saved";
+                          setTimeout(()=>{ btn.textContent = uiLang==="zh"?"⬇ 存圖":"⬇ Save"; btn.disabled = false; }, 2000);
 
                         } catch(err) {
                           // 最終 fallback：新分頁開啟長按存圖
                           window.open(src, "_blank");
-                          btn.textContent = "⬇ 存圖";
+                          btn.textContent = uiLang==="zh"?"⬇ 存圖":"⬇ Save";
                           btn.disabled = false;
                         }
                       };
@@ -2705,7 +2895,7 @@ async function doUnlock(isAutoLogin = false) {
                       // 複製圖片：fetch→blob→ClipboardItem，可直接 Ctrl+V 貼圖
                       const doCopy = async (e) => {
                         const btn = e.currentTarget;
-                        btn.textContent = "⟳ 複製中..."; btn.disabled = true;
+                        btn.textContent = _lang==="zh"?"⟳ 複製中...":"⟳ Copying..."; btn.disabled = true;
                         try {
                           let blob;
                           if (isUrl) {
@@ -2720,14 +2910,14 @@ async function doUnlock(isAutoLogin = false) {
                           }
                           await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
                           setCopiedIdx(idx);
-                          btn.textContent = "✓ 已複製圖片";
-                          setTimeout(()=>{ setCopiedIdx(null); btn.textContent = "⎘ 複製圖片"; btn.disabled = false; }, 2500);
+                          btn.textContent = uiLang==="zh"?"✓ 已複製圖片":"✓ Copied";
+                          setTimeout(()=>{ setCopiedIdx(null); btn.textContent = uiLang==="zh"?"⎘ 複製圖片":"⎘ Copy Img"; btn.disabled = false; }, 2500);
                         } catch(err) {
                           // CORS 或剪貼簿 API 失敗 → fallback 複製網址
-                          try { await navigator.clipboard.writeText(src); btn.textContent = "✓ 已複製網址(fallback)"; }
-                          catch(_) { btn.textContent = "⎘ 複製圖片"; }
+                          try { await navigator.clipboard.writeText(src); btn.textContent = _lang==="zh"?"✓ 已複製網址(fallback)":"✓ URL copied"; }
+                          catch(_) { btn.textContent = uiLang==="zh"?"⎘ 複製圖片":"⎘ Copy Img"; }
                           btn.disabled = false;
-                          setTimeout(()=>{ btn.textContent = "⎘ 複製圖片"; btn.disabled = false; }, 2500);
+                          setTimeout(()=>{ btn.textContent = uiLang==="zh"?"⎘ 複製圖片":"⎘ Copy Img"; btn.disabled = false; }, 2500);
                         }
                       };
 
@@ -2744,7 +2934,7 @@ async function doUnlock(isAutoLogin = false) {
                             <button onClick={doSave} style={{flex:1,padding:"9px 4px",background:"rgba(0,0,0,0.7)",border:"none",color:"var(--text)",fontSize:12,cursor:"pointer",fontWeight:700,transition:"background 0.15s"}}
                               onMouseEnter={e=>e.currentTarget.style.background=`${ac}22`}
                               onMouseLeave={e=>e.currentTarget.style.background="rgba(0,0,0,0.7)"}
-                            >{/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "⬆ 分享/存圖" : "⬇ 存檔下載"}</button>
+                            >{/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? uiLang==="zh"?"⬆ 分享/存圖":"⬆ Share/Save" : uiLang==="zh"?"⬇ 存檔下載":"⬇ Download"}</button>
                           </div>
                         </div>
                       );
