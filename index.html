@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔐 OPS 系統 (V10.2 終極進化版)</title>
+  <title>🔐 OPS System (V10.2 Ultimate Edition)</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0a0a0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -74,21 +74,21 @@
 <div id="lock-ui">
   <div class="auth-card">
     <h1>🔐 OUTFIT PROMPT SYSTEM</h1>
-    <p style="font-size:11px; color:#888; text-align:center; margin-bottom:20px;">AES-256 軍事級加密防護 · 僅限授權使用者</p>
+    <p style="font-size:11px; color:#888; text-align:center; margin-bottom:20px;">AES-256 Military-Grade Encryption · Authorized Users Only</p>
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('unlock')" id="tab-u">🔑 解鎖內容</button>
-      <button class="tab-btn" onclick="switchTab('req')" id="tab-r">📩 申請授權</button>
+      <button class="tab-btn active" onclick="switchTab('unlock')" id="tab-u">🔑 Unlock</button>
+      <button class="tab-btn" onclick="switchTab('req')" id="tab-r">📩 Request Access</button>
     </div>
     <div id="panel-unlock">
-      <input type="email" id="u-email" placeholder="您的 Email 信箱">
-      <input type="password" id="u-pw" placeholder="輸入專屬密碼" onkeydown="if(event.key==='Enter') doUnlock()">
-      <button id="unlock-btn" onclick="doUnlock()">解鎖進入系統</button>
+      <input type="email" id="u-email" placeholder="Your Email Address">
+      <input type="password" id="u-pw" placeholder="Enter Your Password" onkeydown="if(event.key==='Enter') doUnlock()">
+      <button id="unlock-btn" onclick="doUnlock()">Unlock & Enter</button>
     </div>
     <div id="panel-req" style="display:none;">
-      <input type="email" id="r-email" placeholder="輸入您的 Email">
-      <input type="text" id="r-name" placeholder="您的稱呼">
-      <button onclick="sendReq()">發送 Email 申請</button>
-      <p style="font-size:11px; color:#888; margin-top:10px;">送出後請等待獻爸審核並發送專屬密碼。</p>
+      <input type="email" id="r-email" placeholder="Your Email Address">
+      <input type="text" id="r-name" placeholder="Your Name">
+      <button onclick="sendReq()">Send Request</button>
+      <p style="font-size:11px; color:#888; margin-top:10px;">Submit and wait for approval. Your password will be sent via email.</p>
     </div>
   </div>
 </div>
@@ -126,11 +126,11 @@ function switchTab(t) {
 function sendReq() {
   const email = document.getElementById('r-email').value;
   const name = document.getElementById('r-name').value;
-  if(!email.includes('@')) return alert('請輸入正確 Email');
+  if(!email.includes('@')) return alert('Please enter a valid email address');
   fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ email: email, name: name, message: "請求 OPS 系統開通權限" })
-  }).then(() => alert("✅ 申請已送出！請等待獻爸發放專屬密碼。"));
+    body: JSON.stringify({ email: email, name: name, message: "OPS System Access Request" })
+  }).then(() => alert("✅ Request submitted! Please wait for your password."));
 }
 
 function b64ToBytes(b64){
@@ -142,9 +142,9 @@ async function doUnlock(isAutoLogin = false) {
   const email = document.getElementById('u-email').value.trim().toLowerCase();
   const pw = document.getElementById('u-pw').value.trim().toUpperCase();
   const btn = document.getElementById('unlock-btn');
-  if(!email || !pw) return !isAutoLogin && alert("請填寫完整資訊！");
+  if(!email || !pw) return !isAutoLogin && alert("Please fill in all fields!");
 
-  btn.innerText = "驗證與解密中..."; btn.disabled = true;
+  btn.innerText = "Verifying..."; btn.disabled = true;
 
   try {
     const enc = new TextEncoder();
@@ -153,13 +153,13 @@ async function doUnlock(isAutoLogin = false) {
     const expected = Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('').substring(0,10).toUpperCase();
     
     if(pw !== expected) { 
-      btn.innerText = "解鎖進入系統"; btn.disabled = false; 
+      btn.innerText = "Unlock & Enter"; btn.disabled = false; 
       localStorage.removeItem('ops_user_pw'); 
-      return !isAutoLogin && alert("❌ 信箱或密碼錯誤！"); 
+      return !isAutoLogin && alert("❌ Incorrect email or password!"); 
     }
 
     const response = await fetch('./database_secured.txt');
-    if(!response.ok) throw new Error("找不到加密數據庫");
+    if(!response.ok) throw new Error("Encrypted database not found");
     const encryptedData = await response.json();
 
     const salt = b64ToBytes(encryptedData.salt);
@@ -210,8 +210,8 @@ async function doUnlock(isAutoLogin = false) {
 
   } catch(e) {
     console.error(e);
-    btn.innerText = "解鎖進入系統"; btn.disabled = false;
-    if(!isAutoLogin) alert("❌ 解密失敗！請確認資料庫檔案是否已正確上傳至 GitHub。");
+    btn.innerText = "Unlock & Enter"; btn.disabled = false;
+    if(!isAutoLogin) alert("❌ Decryption failed! Please check if the database file has been uploaded to GitHub.");
   }
 }
 </script>
@@ -376,9 +376,9 @@ async function doUnlock(isAutoLogin = false) {
               // 嘗試從 finishReason 判斷原因
               const reason = json.candidates?.[0]?.finishReason || "UNKNOWN";
               const blocked = json.promptFeedback?.blockReason;
-              if (blocked) throw new Error("內容被安全過濾器攔截：" + blocked + "\n請嘗試移除提示詞中的敏感描述");
-              if (mi < models.length - 1) break; // 嘗試備用模型
-              throw new Error("回傳內容為空（finishReason: " + reason + "）\n請稍後重試或縮短提示詞");
+              if (blocked) throw new Error("Content blocked by safety filter: " + blocked + "\nTry removing sensitive descriptions from your prompt.");
+              if (mi < models.length - 1) break; // try fallback model
+              throw new Error("Empty response (finishReason: " + reason + ")\nPlease retry or shorten your prompt.");
             }
             return text;
           }
@@ -389,10 +389,10 @@ async function doUnlock(isAutoLogin = false) {
             }
             // 最後一次 429：若還有備用模型則降級，否則報錯
             if (mi < models.length - 1) break;
-            throw new Error("429 - 已達 API 速率上限。\n免費方案：Flash 10次/分鐘、Lite 15次/分鐘。\n建議稍等 1 分鐘後再試，或開通 Google Cloud 付費帳號提升上限。");
+            throw new Error("429 - API rate limit reached.\nFree tier: Flash 10 req/min, Lite 15 req/min.\nWait ~1 minute or upgrade to a paid Google Cloud account.");
           }
-          if (res.status === 400) throw new Error("400 - API Key 無效或請求格式錯誤，請至 aistudio.google.com 確認 Key 是否正確");
-          if (res.status === 403) throw new Error("403 - API Key 權限不足，請確認已啟用 Generative Language API");
+          if (res.status === 400) throw new Error("400 - Invalid API Key or malformed request. Please verify your key at aistudio.google.com");
+          if (res.status === 403) throw new Error("403 - API Key lacks permission. Please enable the Generative Language API.");
           throw new Error("API Error " + res.status);
         }
       }
@@ -429,7 +429,7 @@ async function doUnlock(isAutoLogin = false) {
       const btnLabel = isComfyGenerating ? _lang==="zh"?_lang==="zh"?"⏳ 算圖中...":"⏳ Generating...":"⏳ Generating..." : isCloudMode ? _lang==="zh"?"☁️ 雲端 Imagen 送出":"☁️ Cloud Imagen" : isRunningHubMode ? _lang==="zh"?"⚡ 送至 RunningHub":"⚡ Send to RH" : _lang==="zh"?"🚀 送至 ComfyUI":"🚀 Send to ComfyUI";
 
       const handleSend = () => {
-        if (!customPos.trim()) return alert("請輸入提示詞！");
+        if (!customPos.trim()) return alert("Please enter a prompt!");
         const negText = customNeg.trim() || (negPrompt && (negPrompt.en || negPrompt.zh)) || "";
         if (isCloudMode) onSendCloud(customPos);
         else if (isRunningHubMode) onSendRH(customPos);
@@ -489,7 +489,7 @@ async function doUnlock(isAutoLogin = false) {
           setOptimizeStatus(_lang==="zh"?"✅ 已從剪貼簿貼入 POSITIVE":"✅ Pasted from clipboard");
           setTimeout(() => setOptimizeStatus(""), 3000);
         } catch(e) {
-          setOptimizeStatus("❌ 無法讀取剪貼簿，請手動貼上");
+          setOptimizeStatus("❌ Cannot read clipboard. Please paste manually.");
           setTimeout(() => setOptimizeStatus(""), 3000);
         }
       };
@@ -543,11 +543,11 @@ async function doUnlock(isAutoLogin = false) {
           if (!enText) enText = raw.trim();
           setCustomPos(enText);
           setCustomZh(zhText || _lang==="zh"?"（AI 未回傳中文翻譯）":"(No ZH translation)");
-          const zhStatus = zhText ? " + ZH 中文翻譯已填入" : _lang==="zh"?"（ZH未回傳，可手動填）":"(No ZH returned)";
+          const zhStatus = zhText ? " + ZH translation filled" : _lang==="zh"?"（ZH未回傳，可手動填）":"(No ZH returned)";
           setOptimizeStatus(_lang==="zh"?"✅ 優化完成！EN":"✅ Done! EN" + zhStatus);
           setTimeout(() => setOptimizeStatus(""), 4000);
         } catch(e) {
-          setOptimizeStatus(`❌ 優化失敗：${e.message}`);
+          setOptimizeStatus(`❌ Optimization failed: ${e.message}`);
           setTimeout(() => setOptimizeStatus(""), 4000);
         } finally {
           setIsOptimizing(false);
@@ -611,7 +611,7 @@ async function doUnlock(isAutoLogin = false) {
                 </div>
                 {/* EN 欄位 */}
                 <div style={{marginBottom:6}}>
-                  <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>EN（英文 · 直送算圖）</span>
+                  <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>EN (English · Direct Render)</span>
                   <textarea
                     value={customPos}
                     onChange={e => setCustomPos(e.target.value)}
@@ -623,7 +623,7 @@ async function doUnlock(isAutoLogin = false) {
                 {/* ZH 欄位 */}
                 <div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:4}}>
-                    <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>ZH（中文 · 可直送 RunningHub / ComfyUI）</span>
+                    <span style={{fontSize:10,color:(acColor+"99"),fontWeight:700}}>ZH (Chinese · Supports RunningHub / ComfyUI)</span>
                     <div style={{display:"flex",gap:5}}>
                       <button
                         onClick={handleTranslateZH}
@@ -631,7 +631,7 @@ async function doUnlock(isAutoLogin = false) {
                         style={{fontSize:9,padding:"2px 8px",background:isTranslating?"rgba(34,211,238,0.15)":"transparent",
                           border:"1px solid #22d3ee"+(isTranslating?"":"88"),color:isTranslating?"#22d3ee":"#22d3ee99",borderRadius:4,cursor:isTranslating?"wait":"pointer",fontWeight:700}}
                       >{isTranslating?_lang==="zh"?"⏳ 翻譯中...":"⏳ Translating...":_lang==="zh"?"🌐 翻譯EN→ZH":"🌐 Translate→ZH"}</button>
-                      <button onClick={()=>setCustomZh("")} style={{fontSize:9,padding:"2px 7px",background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:4,cursor:"pointer"}}>清除</button>
+                      <button onClick={()=>setCustomZh("")} style={{fontSize:9,padding:"2px 7px",background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:4,cursor:"pointer"}}>Clear</button>
                     </div>
                   </div>
                   <textarea
@@ -646,7 +646,7 @@ async function doUnlock(isAutoLogin = false) {
               {!isCloudMode && (
                 <div style={{marginBottom:12}}>
                   <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
-                    <span style={{fontSize:11, color:C.red, letterSpacing:1}}>－ NEGATIVE（選填）</span>
+                    <span style={{fontSize:11, color:C.red, letterSpacing:1}}>－ NEGATIVE (Optional)</span>
                     <button
                       onClick={handleCopyNeg}
                       style={{
@@ -671,7 +671,7 @@ async function doUnlock(isAutoLogin = false) {
                 <button
                   onClick={() => { setCustomPos(""); setCustomZh(""); setCustomNeg(""); }}
                   style={{padding:"6px 14px", background:"transparent", border:"1px solid var(--border)", color:"var(--subtext)", borderRadius:7, fontSize:12, cursor:"pointer"}}
-                >清除</button>
+                >Clear</button>
                 {/* ZH中文直送按鈕（僅 RunningHub / ComfyUI 支援）*/}
                 {!isCloudMode && (
                   <button
@@ -724,23 +724,23 @@ async function doUnlock(isAutoLogin = false) {
           <span style={{color:titleColor,fontWeight:700,fontSize:12}}>{title}</span>
           <div style={{display:"flex",gap:5}}>
             {["en","zh"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"2px 8px",fontSize:11,border:"none",background:tab===t?`${titleColor}22`:"transparent",color:tab===t?titleColor:"var(--subtext)",cursor:"pointer",borderRadius:4,fontWeight:tab===t?700:400}}>{t.toUpperCase()}</button>)}
-            {onExpand&&<Btn onClick={()=>onExpand(tab)} disabled={expanding} color={C.cyan} style={{padding:"2px 8px",fontSize:11}}>{expanding?"⟳ 擴寫...":"✦ AI智能擴寫"}</Btn>}
+            {onExpand&&<Btn onClick={()=>onExpand(tab)} disabled={expanding} color={C.cyan} style={{padding:"2px 8px",fontSize:11}}>{expanding?"⟳ Expanding...":"✦ AI Expand"}</Btn>}
             
             {/* 非雲端模式：AI優化 + 填入自訂欄 + 送出 */}
             {!isCloudMode && (
               <>
                 <Btn onClick={handleOptimizeAndFill} disabled={isOptimizingPC} color={C.cloud}
                   style={{padding:"2px 8px",fontSize:11,background:isOptimizingPC?`${C.cloud}22`:`${C.cloud}15`}}>
-                  {isOptimizingPC ? _lang==="zh"?"⏳ 優化中...":"⏳ Optimizing..." : "✨ AI優化→自訂欄"}
+                  {isOptimizingPC ? _lang==="zh"?"⏳ 優化中...":"⏳ Optimizing..." : "✨ AI Optimize → Custom"}
                 </Btn>
                 <Btn onClick={async () => {
                   try {
                     const t = await navigator.clipboard.readText();
                     if (t.trim()) { window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(t.trim()); }
-                    else { alert("剪貼簿是空的"); }
-                  } catch(e) { alert("無法讀取剪貼簿，請手動貼上"); }
+                    else { alert("Clipboard is empty."); }
+                  } catch(e) { alert("Cannot read clipboard. Please paste manually."); }
                 }} color={C.green} style={{padding:"2px 8px",fontSize:11,background:`${C.green}15`}}>
-                  📥 剪貼簿→自訂欄
+                  📥 Clipboard → Custom
                 </Btn>
                 {onActionSend && <Btn onClick={() => onActionSend(txt, tab)} disabled={isComfyGenerating} color={acSend} style={{padding:"2px 8px",fontSize:11, background:`${acSend}26`}}>{isComfyGenerating ? _lang==="zh"?_lang==="zh"?"⏳ 算圖中...":"⏳ Generating...":"⏳ Generating..." : (isRunningHubMode ? _lang==="zh"?"⚡ 送至 RunningHub":"⚡ Send to RH" : _lang==="zh"?"🚀 送至 ComfyUI":"🚀 Send to ComfyUI")}</Btn>}
               </>
@@ -754,26 +754,25 @@ async function doUnlock(isAutoLogin = false) {
                   color={C.cloud} 
                   style={{padding:"2px 8px",fontSize:11, background:`${C.cloud}26`}}
                 >
-                  ⎘ 複製並開啟 Gemini
+                  ⎘ Copy & Open Gemini
                 </Btn>
                 <Btn
                   onClick={async () => {
                     try {
                       const text = await navigator.clipboard.readText();
                       if (text.trim()) {
-                        // Find the CustomPromptSender textarea and fill it
                         window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(text.trim());
                       } else {
-                        alert("剪貼簿是空的，請先在 Gemini 複製優化後的提示詞");
+                        alert("Clipboard is empty. Copy your optimized prompt from Gemini first.");
                       }
                     } catch(e) {
-                      alert("無法讀取剪貼簿，請手動複製後點擊「自訂提示詞直送」區塊的「📥 貼入剪貼簿」按鈕");
+                      alert("Cannot read clipboard. Please manually paste using the 📥 Paste button in the Custom Prompt section.");
                     }
                   }}
                   color={C.green}
                   style={{padding:"2px 8px",fontSize:11, background:`${C.green}26`}}
                 >
-                  📥 Gemini結果→自訂欄
+                  📥 Gemini → Custom
                 </Btn>
               </>
             )}
@@ -948,7 +947,7 @@ async function doUnlock(isAutoLogin = false) {
         { key:"mcu", label: uiLang==="zh"?"👤 近景":"👤 MCU",  en:"Medium CU", desc: uiLang==="zh"?"胸部以上":"Chest up" },
         { key:"ms",  label: uiLang==="zh"?"🧍 半身":"🧍 Half", en:"Medium Shot", desc: uiLang==="zh"?"腰部以上":"Waist up" },
         { key:"mls", label: uiLang==="zh"?"📐 七分身":"📐 3/4", en:"Medium Long", desc: uiLang==="zh"?"膝蓋以上":"Knees up" },
-        { key:"fs",  label:"🧍‍♀️ 全身",  en:"Full Shot",   desc:"完整全身" },
+        { key:"fs",  label:"🧍‍♀️ Full",  en:"Full Shot",   desc:"Full body" },
         { key:"ls",  label: uiLang==="zh"?"🌄 帶景全身":"🌄 Long", en:"Long Shot", desc: uiLang==="zh"?"人物+大環境":"Wide" },
       ];
       const filteredPoseList = (() => {
@@ -1031,7 +1030,7 @@ async function doUnlock(isAutoLogin = false) {
           } else if (storyboardMode === "image") {
             // ── 文生圖分鏡模式（新功能）──
             const count = storyboardCount || 8;
-            const baseChar = srcEn || srcZh || "(根據大綱自動設定角色)";
+            const baseChar = srcEn || srcZh || "(auto-determine character from outline)";
             const sysP = "You are a cinematic AI image storyboard director." +
               "\nGenerate EXACTLY " + count + " sequential image prompts. You MUST output all " + count + " scenes — do not stop early." +
               "\n\nCORE RULES (STRICT):" +
@@ -1111,11 +1110,11 @@ async function doUnlock(isAutoLogin = false) {
       };
       const exportHistory = () => {
         if (!promptHistory.length) return alert(uiLang==="zh"?"尚無歷史紀錄":"No history yet");
-        const csv = "\uFEFF" + "時間,名稱,正向EN,正向ZH,負向EN\n" +
+        const csv = "\uFEFF" + "Time,Name,Positive EN,Positive ZH,Negative EN\n" +
           promptHistory.map(h => [h.ts, h.name||"", h.pos_en, h.pos_zh, h.neg_en].map(v => '"' + (v||"").replace(/"/g,"''") + '"').join(",")).join("\n");
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
-        a.download = "OPS提示詞歷史_" + new Date().toLocaleDateString("zh-TW").replace(/\//g,"-") + ".csv";
+        a.download = "OPS_PromptHistory_" + new Date().toLocaleDateString("en-CA").replace(/\//g,"-") + ".csv";
         a.click();
       };
 
@@ -1151,7 +1150,7 @@ async function doUnlock(isAutoLogin = false) {
                 body: JSON.stringify({ instances: [{ prompt: posText }], parameters: { sampleCount: 1, aspectRatio: aspect, personGeneration: "ALLOW_ADULT" } })
             });
 
-            if (!response.ok) { const errData = await response.json().catch(()=>({})); if(response.status===429) throw new Error("429 - 已達 Imagen 請求速率限制，請稍等 1 分鐘後再試"); throw new Error(errData.error?.message || "API Error " + response.status); }
+            if (!response.ok) { const errData = await response.json().catch(()=>({})); if(response.status===429) throw new Error("429 - Imagen rate limit reached. Please wait ~1 minute and try again."); throw new Error(errData.error?.message || "API Error " + response.status); }
             const data = await response.json();
             if (data.predictions && data.predictions.length > 0) {
                 setComfyImages([`data:image/jpeg;base64,${data.predictions[0].bytesBase64Encoded}`]); setComfyProgress(100);
@@ -1164,7 +1163,7 @@ async function doUnlock(isAutoLogin = false) {
         setComfyProgress(100);
         try {
             const res = await fetch(`${comfyUrl}/history/${promptId}`); const history = await res.json();
-            const outputs = history[promptId]?.outputs; if (!outputs) throw new Error("無輸出資料");
+            const outputs = history[promptId]?.outputs; if (!outputs) throw new Error("No output data found");
             const newImages = [];
             for (const nodeId in outputs) {
                 if (outputs[nodeId].images) {
@@ -1204,7 +1203,7 @@ async function doUnlock(isAutoLogin = false) {
             if (workflow[comfyNodes.pos] && workflow[comfyNodes.pos].inputs) {
               workflow[comfyNodes.pos].inputs.text = posText;
             } else {
-              throw new Error(`找不到正向提示詞 Node ID: ${comfyNodes.pos}，請檢查設定！`);
+              throw new Error(`Positive prompt Node ID not found: ${comfyNodes.pos}. Please check settings!`);
             }
             
             // 寫入負向提示詞
@@ -1224,7 +1223,7 @@ async function doUnlock(isAutoLogin = false) {
             try { ws = new WebSocket(comfyUrl.replace("http://", "ws://").replace("https://", "wss://") + "/ws?clientId=" + clientId); activeWsRef.current = ws; } catch(e) {}
             
             const response = await fetch(`${comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow, client_id: clientId }) });
-            if (!response.ok) throw new Error(`伺服器回應錯誤`);
+            if (!response.ok) throw new Error(`Server response error`);
             const json = await response.json(); const promptId = json.prompt_id; activePromptIdRef.current = promptId; localStorage.setItem("ops_comfy_url", comfyUrl);
             
             if (ws) {
@@ -1236,7 +1235,7 @@ async function doUnlock(isAutoLogin = false) {
                     }
                 };
             } else { alert(_lang==="zh"?"⚠️ WebSocket 連線失敗，無法即時追蹤進度，但已送出算圖請求。":"⚠️ WebSocket failed, but request was sent."); setIsComfyGenerating(false); }
-        } catch (err) { setIsComfyGenerating(false); alert(`❌ 發送失敗！\n系統錯誤: ${err.message}`); if (ws) ws.close(); }
+        } catch (err) { setIsComfyGenerating(false); alert(`❌ Send failed!\nError: ${err.message}`); if (ws) ws.close(); }
       };
 
       const handleRunningHubSend = async (posText) => {
@@ -1244,10 +1243,10 @@ async function doUnlock(isAutoLogin = false) {
         if (!rhWorkflowId) return alert(_lang==="zh"?"請先填寫 RunningHub 工作流 ID！":"Please enter RunningHub Workflow ID!");
         cancelRef.current = false; setIsComfyGenerating(true); setComfyProgress(5); setComfyImages([]); setRhQueueStatus(""); setCopiedIdx(null);
         const RH_ERRORS = {
-          "TASK_QUEUE_MAXED": "⏳ 佇列已滿\n請等當前任務完成後再試，或升級 RunningHub 方案。",
-          "INVALID_API_KEY": "🔑 API Key 無效，請重新複製。",
-          "WORKFLOW_NOT_FOUND": "📋 找不到工作流，請確認 ID 與 API 模式。",
-          "INSUFFICIENT_COINS": "💰 RunningHub 算力點不足，請充值。",
+          "TASK_QUEUE_MAXED": "⏳ Queue full\nPlease wait for the current task to finish, or upgrade your RunningHub plan.",
+          "INVALID_API_KEY": "🔑 API Key is invalid. Please copy it again.",
+          "WORKFLOW_NOT_FOUND": "📋 Workflow not found. Please verify the ID and API mode.",
+          "INSUFFICIENT_COINS": "💰 Insufficient RunningHub credits. Please top up.",
         };
         const tryCreate = async (retry) => {
           // 動態組合 RunningHub 的節點覆寫清單
@@ -1265,25 +1264,25 @@ async function doUnlock(isAutoLogin = false) {
 
           const body = { apiKey: rhApiKey, workflowId: rhWorkflowId, nodeInfoList };
           const res = await fetch("https://www.runninghub.cn/task/openapi/create", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-          if (!res.ok) throw new Error(`連線失敗 HTTP ${res.status}`);
+          if (!res.ok) throw new Error(`Connection failed HTTP ${res.status}`);
           const j = await res.json();
           const errKey = j.msg || (typeof j.data === "string" ? j.data : "");
           if (errKey === "TASK_QUEUE_MAXED") {
             if (retry <= 0) throw new Error(RH_ERRORS["TASK_QUEUE_MAXED"]);
             const w = (4 - retry) * 10 + 15;
-            setRhQueueStatus(`⏳ 佇列已滿，${w}秒後重試 (剩餘${retry}次)...`);
+            setRhQueueStatus(`⏳ Queue full, retrying in ${w}s (${retry} left)...`);
             await new Promise(r => setTimeout(r, w * 1000));
             setRhQueueStatus(_lang==="zh"?"🔄 重試中...":"🔄 Retrying...");
             return tryCreate(retry - 1);
           }
-          if (j.code !== 0) throw new Error(RH_ERRORS[errKey] || `建立失敗: ${errKey || j.code}`);
-          if (!j.data?.taskId) throw new Error("未取得 taskId，請確認設定。");
+          if (j.code !== 0) throw new Error(RH_ERRORS[errKey] || `Task creation failed: ${errKey || j.code}`);
+          if (!j.data?.taskId) throw new Error("No taskId returned. Please check your settings.");
           return j.data.taskId;
         };
         try {
           setRhQueueStatus(_lang==="zh"?"📡 建立任務中...":"📡 Creating task...");
           const taskId = await tryCreate(3);
-          setComfyProgress(25); setRhQueueStatus(`✅ 任務建立成功，等待算圖...`);
+          setComfyProgress(25); setRhQueueStatus(`✅ Task created, waiting for render...`);
           let attempts = 0;
           while (attempts < 90) {
             await new Promise(r => setTimeout(r, 4000));
@@ -1302,13 +1301,13 @@ async function doUnlock(isAutoLogin = false) {
                 }
               }
               const st = sj.data?.status || sj.msg || "";
-              if (/failed|error/i.test(st)) throw new Error(`任務失敗(${st})，請至 RunningHub 控制台查看日誌。`);
-            } catch(pe) { if (/失敗/.test(pe.message)) throw pe; }
-            setRhQueueStatus(`⚡ Z-image 算圖中... 已等待${attempts*4}s`);
+              if (/failed|error/i.test(st)) throw new Error(`Task failed (${st}). Please check the RunningHub console.`);
+            } catch(pe) { if (/failed/i.test(pe.message)) throw pe; }
+            setRhQueueStatus(`⚡ Z-image rendering... ${attempts*4}s elapsed`);
           }
-          throw new Error("算圖超時(6分鐘)，請至 RunningHub 控制台確認狀態。");
+          throw new Error("Render timeout (6 min). Please check status in the RunningHub console.");
         } catch(e) {
-          setRhQueueStatus(""); alert("❌ RunningHub 失敗：\n" + e.message); setComfyProgress(0);
+          setRhQueueStatus(""); alert("❌ RunningHub failed:\n" + e.message); setComfyProgress(0);
         } finally { setIsComfyGenerating(false); }
       };
 
@@ -1321,7 +1320,7 @@ async function doUnlock(isAutoLogin = false) {
       };
       const handleRemoveCustomChar = (e, id) => {
         e.stopPropagation();
-        if(window.confirm("確定要刪除此自訂角色嗎？")) { const updated = {...customChars}; delete updated[id]; setCustomChars(updated); localStorage.setItem("ops_custom_chars", JSON.stringify(updated)); setSelChars(p => p.filter(k => k !== id)); }
+        if(window.confirm("Delete this custom character?")) { const updated = {...customChars}; delete updated[id]; setCustomChars(updated); localStorage.setItem("ops_custom_chars", JSON.stringify(updated)); setSelChars(p => p.filter(k => k !== id)); }
       };
       const handleAIGenerate = (cat) => {
         const newItem = simulateAIGenerate(cat); if(!newItem) return;
@@ -1630,7 +1629,7 @@ async function doUnlock(isAutoLogin = false) {
           <div style={{background:`linear-gradient(90deg, ${C.orange}1A 0%, ${C.cyan}0D 100%)`,borderBottom:"1px solid var(--border)",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
             <div>
               <div style={{color:C.orange,fontWeight:900,fontSize:15,letterSpacing:4}}>◈ OUTFIT PROMPT SYSTEM <span style={{color:C.cyan}}>MODULAR</span></div>
-              <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.2 終極進化版</div>
+              <div style={{fontSize:10,color:"var(--subtext)",letterSpacing:1.5}}>V10.2 Ultimate Edition</div>
             </div>
             <div style={{display:"flex", gap:8, alignItems:"center"}}>
               <button onClick={toggleLang} style={{
@@ -1652,7 +1651,7 @@ async function doUnlock(isAutoLogin = false) {
             <div style={{display:"flex", borderRadius:10, overflow:"hidden", marginBottom:8, border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.orange}`}}>
               <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:isCloudMode?`${C.cloud}33`:"var(--card)",color:isCloudMode?C.cloud:"var(--subtext)"}} onClick={()=>{setIsCloudMode(true);setIsRunningHubMode(false);}}>☁️ Gemini Imagen 3<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"安全模式·雲端破防咒語":"Cloud Safety Mode"}</span></button>
               <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",borderRight:"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s",background:(!isCloudMode&&isRunningHubMode)?`${C.rhGold}33`:"var(--card)",color:(!isCloudMode&&isRunningHubMode)?C.rhGold:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(true);}}>⚡ RunningHub Z-image<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"新王登基·雲端 ComfyUI 算力":"RunningHub Cloud Engine"}</span></button>
-              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 本地 ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"RTX 5090·極限物理張力":"RTX 5090 · Local Engine"}</span></button>
+              <button style={{flex:1,padding:10,fontSize:13,fontWeight:"bold",cursor:"pointer",border:"none",transition:"all 0.2s",background:(!isCloudMode&&!isRunningHubMode)?`${C.orange}33`:"var(--card)",color:(!isCloudMode&&!isRunningHubMode)?C.orange:"var(--subtext)"}} onClick={()=>{setIsCloudMode(false);setIsRunningHubMode(false);}}>💻 Local ComfyUI<br/><span style={{fontSize:9,fontWeight:"normal",opacity:0.8}}>{_lang==="zh"?"RTX 5090·極限物理張力":"RTX 5090 · Local Engine"}</span></button>
             </div>
 
             {isCloudMode ? (
@@ -1677,14 +1676,14 @@ async function doUnlock(isAutoLogin = false) {
                     placeholder={_lang==="zh"?"貼上 Google AI Studio API Key（用於 AI優化Prompt）":"Paste Google AI Studio API Key"}
                     style={{flex:1,padding:"5px 10px",background:"var(--inputBg)",border:`1px solid ${C.cloud}44`,borderRadius:5,color:"var(--text)",fontSize:11,outline:"none"}}
                   />
-                  {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓ 已設定</span>}
+                  {cloudApiKey && <span style={{fontSize:10,color:"#50c070",whiteSpace:"nowrap"}}>✓ Set</span>}
                 </div>
               </div>
             ) : isRunningHubMode ? (
               <div style={{marginBottom:16,padding:"12px",background:`${C.rhGold}12`,border:`1px dashed ${C.rhGold}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:11,color:C.rhGold,fontWeight:"bold",display:"flex",justifyContent:"space-between"}}>
                   <span>{_lang==="zh"?"⚡ Z-image 新王登基 — RunningHub 雲端 ComfyUI 算力":"⚡ Z-image — RunningHub Cloud Engine"}</span>
-                  <a href="https://www.runninghub.cn" target="_blank" rel="noreferrer" style={{color:C.rhGold,textDecoration:"underline"}}>👉 前往 RunningHub</a>
+                  <a href="https://www.runninghub.cn" target="_blank" rel="noreferrer" style={{color:C.rhGold,textDecoration:"underline"}}>👉 Go to RunningHub</a>
                 </div>
                 
                 <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -1693,7 +1692,7 @@ async function doUnlock(isAutoLogin = false) {
                     <input type="password" value={rhApiKey} onChange={e=>{setRhApiKey(e.target.value);localStorage.setItem("ops_rh_api_key",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder="RunningHub API Key..." />
                   </div>
                   <div style={{fontSize:12,color:C.rhGold,display:"flex",alignItems:"center",gap:8,background:`${C.rhGold}14`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.rhGold}4D`,flex:"1 1 160px"}}>
-                    <label style={{fontWeight:"bold",whiteSpace:"nowrap"}}>🆔 工作流 ID:</label>
+                    <label style={{fontWeight:"bold",whiteSpace:"nowrap"}}>🆔 Workflow ID:</label>
                     <input type="text" value={rhWorkflowId} onChange={e=>{setRhWorkflowId(e.target.value);localStorage.setItem("ops_rh_workflow_id",e.target.value);}} style={{background:"var(--bg)",border:`1px solid var(--border)`,color:"var(--text)",padding:"4px 8px",borderRadius:4,width:"100%"}} placeholder={uiLang==="zh"?"如: 1234567":"e.g. 1234567"} />
                   </div>
                   <div style={{fontSize:12,color:C.cloud,display:"flex",alignItems:"center",gap:8,background:`${C.cloud}0e`,padding:"8px 12px",borderRadius:"6px",border:`1px solid ${C.cloud}33`,flex:"1 1 200px"}}>
@@ -1718,7 +1717,7 @@ async function doUnlock(isAutoLogin = false) {
               <div style={{marginBottom:16,padding:"12px",background:`${C.orange}1A`,border:`1px dashed ${C.orange}`,borderRadius:6,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:11,color:C.orange,display:"flex",alignItems:"center",gap:8}}>
                   <input type="checkbox" checked={useHardcoreTags} onChange={e=>setUseHardcoreTags(e.target.checked)} style={{accentColor:C.orange,cursor:"pointer"}} id="hardcore-toggle" />
-                  <label style={{cursor:"pointer",fontWeight:"bold"}} htmlFor="hardcore-toggle">{_lang==="zh"?"🔥 啟用 Danbooru 底層暴力標籤 (強制突破大模型平滑限制，注入 1.5 高權重內衣浮雕與張力破壞參數)":"🔥 Enable Danbooru Tags (inject 1.5 high-weight fabric tension params)"}數)</label>
+                  <label style={{cursor:"pointer",fontWeight:"bold"}} htmlFor="hardcore-toggle">{_lang==="zh"?"🔥 啟用 Danbooru 底層暴力標籤 (強制突破大模型平滑限制，注入 1.5 高權重內衣浮雕與張力破壞參數)":"🔥 Enable Danbooru Tags (inject 1.5 high-weight fabric tension params)"}</label>
                 </div>
                 
                 <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
@@ -1740,8 +1739,8 @@ async function doUnlock(isAutoLogin = false) {
                         try {
                           const json = JSON.parse(evt.target.result);
                           setComfyWorkflow(json); localStorage.setItem("ops_comfy_workflow", JSON.stringify(json));
-                          alert("✅ 工作流 JSON 載入成功！請確認右側的 Node ID 對應正確。");
-                        } catch(err) { alert("❌ JSON 解析失敗，請確認檔案格式！"); }
+                          alert("✅ Workflow JSON loaded! Please verify the Node IDs on the right.");
+                        } catch(err) { alert("❌ JSON parse failed. Please check the file format."); }
                       };
                       reader.readAsText(file);
                     }} style={{width:"180px", fontSize:"10px"}} />
@@ -1840,7 +1839,7 @@ async function doUnlock(isAutoLogin = false) {
                     {shotFilter!=="all" && (()=>{
                       const cat = SHOT_CATS.find(c=>c.key===shotFilter);
                       return cat ? <div style={{fontSize:10,padding:"3px 8px",background:`${C.cyan}12`,border:`1px solid ${C.cyan}30`,borderRadius:5,color:C.cyan,display:"inline-block"}}>
-                        📐 {cat.en} — {cat.desc}，篩選中 {filteredPoseList.length} 個姿勢
+                        📐 {cat.en} — {cat.desc}, filtering {filteredPoseList.length} poses
                       </div> : null;
                     })()}
                   </div>
@@ -1874,9 +1873,9 @@ async function doUnlock(isAutoLogin = false) {
                     {selAngle && (()=>{
                       const ang = ANGLE_DB.find(x=>x.id===selAngle);
                       if(!ang) return null;
-                      const wLabel = ang.w>=1.4?"🔴 極強影響":ang.w>=1.3?uiLang==="zh"?uiLang==="zh"?"🟠 強影響":"🟠 Strong":"🟠 Strong":ang.w>=1.2?uiLang==="zh"?"🟡 中影響":"🟡 Medium":uiLang==="zh"?"🟢 輕影響":"🟢 Light";
+                      const wLabel = ang.w>=1.4?"🔴 Very Strong":ang.w>=1.3?uiLang==="zh"?uiLang==="zh"?"🟠 強影響":"🟠 Strong":"🟠 Strong":ang.w>=1.2?uiLang==="zh"?"🟡 中影響":"🟡 Medium":uiLang==="zh"?"🟢 輕影響":"🟢 Light";
                       return <div style={{fontSize:10,padding:"4px 8px",background:"#22d3ee15",border:"1px solid #22d3ee33",borderRadius:5,color:"#22d3ee",marginBottom:4}}>
-                        ⚡ 視角權重 <b>{ang.w}</b> — {wLabel} | 對 AI 生圖構圖的影響力
+                        ⚡ Angle Weight <b>{ang.w}</b> — {wLabel} | Influence on AI composition
                       </div>;
                     })()}
                   </div>
@@ -1901,7 +1900,7 @@ async function doUnlock(isAutoLogin = false) {
                       const shoe = SHOE_DB.find(x=>x.id===selShoe);
                       if(!shoe) return null;
                       return <div style={{fontSize:10,padding:"4px 8px",background:"#f59e0b15",border:"1px solid #f59e0b33",borderRadius:5,color:"#f59e0b",marginBottom:4}}>
-                        👟 已選：<b>{shoe.label}</b>
+                        👟 Selected: <b>{shoe.label}</b>
                       </div>;
                     })()}
                   </div>
@@ -1923,8 +1922,8 @@ async function doUnlock(isAutoLogin = false) {
                     <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:6}}>
                       <span style={{fontSize:10, color:C.pink, fontWeight:700, letterSpacing:1}}>{_lang==="zh"?"✦ 深度情緒細節 (可多選)":"✦ Deep Emotion (Multi-select)"}</span>
                       <div style={{display:"flex", gap:5, alignItems:"center"}}>
-                        {selEmotion.length>0&&<span style={{fontSize:9,color:`${C.pink}B3`,background:`${C.pink}1F`,padding:"1px 7px",borderRadius:8}}>已選 {selEmotion.length}</span>}
-                        <button onClick={()=>{const s=[...allEmotion].sort(()=>0.5-Math.random());setSelEmotion(s.slice(0,3).map(e=>e.id));}} style={{background:"transparent",border:`1px solid ${C.pink}`,color:C.pink,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>✦ 抽3</button>
+                        {selEmotion.length>0&&<span style={{fontSize:9,color:`${C.pink}B3`,background:`${C.pink}1F`,padding:"1px 7px",borderRadius:8}}>Selected {selEmotion.length}</span>}
+                        <button onClick={()=>{const s=[...allEmotion].sort(()=>0.5-Math.random());setSelEmotion(s.slice(0,3).map(e=>e.id));}} style={{background:"transparent",border:`1px solid ${C.pink}`,color:C.pink,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>✦ Pick 3</button>
                       </div>
                     </div>
                     {(()=>{
@@ -1977,7 +1976,7 @@ async function doUnlock(isAutoLogin = false) {
                        </div>
                        <textarea placeholder={_lang==="zh"?"英文設定":"EN Config"} value={newChar.en} onChange={e=>setNewChar({...newChar, en: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
                        <textarea placeholder={_lang==="zh"?"中文設定":"ZH Config"} value={newChar.zh} onChange={e=>setNewChar({...newChar, zh: e.target.value})} style={{width:"100%", marginBottom:8, background:"var(--card)", border:`1px solid var(--border)`, color:"var(--text)", padding:"6px", borderRadius:4, minHeight:50, outline:"none"}}/>
-                       <button onClick={handleAddCustomChar} style={{width:"100%", padding:"8px", background:C.cyan, color:"#000", border:"none", borderRadius:4, fontWeight:"bold", cursor:"pointer"}}>💾 儲存並加入</button>
+                       <button onClick={handleAddCustomChar} style={{width:"100%", padding:"8px", background:C.cyan, color:"#000", border:"none", borderRadius:4, fontWeight:"bold", cursor:"pointer"}}>💾 Save & Add</button>
                     </div>
                   )}
                 </Sec>
@@ -2002,9 +2001,9 @@ async function doUnlock(isAutoLogin = false) {
                       <span style={{fontSize:9, color:C.yellow, background:`${C.yellow}1A`, padding:"2px 6px", borderRadius:4, fontWeight:700}}>{lightContrast <= 15 ? uiLang==="zh"?"☁️ 極柔夢幻":"☁️ Dreamy" : lightContrast <= 30 ? uiLang==="zh"?"🌥 柔和低調":"🌥 Soft" : lightContrast <= 45 ? uiLang==="zh"?"🌤 均衡自然":"🌤 Natural" : lightContrast <= 55 ? uiLang==="zh"?"⚖️ 電影標準":"⚖️ Cinematic" : lightContrast <= 70 ? uiLang==="zh"?"🌩 強化對比":"🌩 Contrast" : lightContrast <= 85 ? uiLang==="zh"?"⚡ 戲劇高反差":"⚡ Dramatic" : uiLang==="zh"?"🔥 極限暴力光":"🔥 Extreme"} ({lightContrast})</span>
                     </div>
                     <div style={{display:"flex", alignItems:"center", gap:10}}>
-                      <span style={{fontSize:9, color:"var(--subtext)", whiteSpace:"nowrap"}}>柔和夢幻</span>
+                      <span style={{fontSize:9, color:"var(--subtext)", whiteSpace:"nowrap"}}>Soft & Dreamy</span>
                       <div style={{flex:1, position:"relative"}}><input type="range" min="0" max="100" value={lightContrast} onChange={e => setLightContrast(Number(e.target.value))} style={{width:"100%", cursor:"pointer", appearance:"none", height:4, borderRadius:2, outline:"none", background:`linear-gradient(to right, ${C.cloud}88 0%, ${C.yellow}dd ${lightContrast}%, ${C.yellow}33 ${lightContrast}%, ${C.orange}66 100%)`}} /></div>
-                      <span style={{fontSize:9, color:"var(--subtext)", whiteSpace:"nowrap"}}>戲劇硬光</span>
+                      <span style={{fontSize:9, color:"var(--subtext)", whiteSpace:"nowrap"}}>Dramatic Hard Light</span>
                     </div>
                   </div>
                 </Sec>
@@ -2053,7 +2052,7 @@ async function doUnlock(isAutoLogin = false) {
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:6}}>
                     <div style={{fontSize:11, color:C.purple, letterSpacing:2, fontWeight:700, textTransform:"uppercase"}}>{_lang==="zh"?"⑨ 飾品配件 ACCESSORIES (多選)":"⑨ Accessories (Multi-Select)"}</div>
                     <div style={{display:"flex", gap:5, alignItems:"center"}}>
-                      {selA.length>0&&<span style={{fontSize:9,color:`${C.purple}B3`,background:`${C.purple}1F`,padding:"1px 7px",borderRadius:8}}>已選 {selA.length}</span>}
+                      {selA.length>0&&<span style={{fontSize:9,color:`${C.purple}B3`,background:`${C.purple}1F`,padding:"1px 7px",borderRadius:8}}>Selected {selA.length}</span>}
                       <button onClick={()=>{const g=ACC_GROUPS[Math.floor(Math.random()*ACC_GROUPS.length)];if(!g)return;const ids=g.ids;const pick=ids[Math.floor(Math.random()*ids.length)];setSelA(p=>p.includes(pick)?p:[...p,pick]);}} style={{background:"transparent",border:`1px solid ${C.purple}`,color:C.purple,padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 隨機加一":"✦ Random +"}</button>
                       <button onClick={()=>setSelA([])} style={{background:"transparent",border:"1px solid var(--subtext)",color:"var(--text)",padding:"2px 7px",borderRadius:4,fontSize:9,cursor:"pointer"}}>{_lang==="zh"?"✕ 清空此區":"✕ Clear"}</button>
                     </div>
@@ -2087,7 +2086,7 @@ async function doUnlock(isAutoLogin = false) {
                 
                 <Sec title={_lang==="zh"?`⑩ 超級視覺張力 ${isCloudMode?"(雲端安全)":""}`:(`⑩ Tension Physics ${isCloudMode?"(Cloud Safe)":""}`)} accentColor={isCloudMode?"var(--subtext)":C.green} onClear={()=>setSelBra([])} actionNode={
                   <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    <span style={{fontSize:9,color:"var(--subtext)",fontFamily:"monospace"}}>{selBra.length>0?`已選${selBra.length}`:""}</span>
+                    <span style={{fontSize:9,color:"var(--subtext)",fontFamily:"monospace"}}>{selBra.length>0?`Selected ${selBra.length}`:""}</span>
                     <button onClick={drawRandomTensions} style={{background:"transparent",border:`1px solid ${isCloudMode?"var(--subtext)":C.green}`,color:isCloudMode?"var(--text)":C.green,padding:"2px 8px",borderRadius:4,fontSize:10,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 抽5項":"✦ Draw 5"}</button>
                   </div>
                 } containerStyle={{flex:1,display:"flex",flexDirection:"column",marginBottom:0}}>
@@ -2141,14 +2140,14 @@ async function doUnlock(isAutoLogin = false) {
 
                     {/* ── 圖例說明列 ── */}
                     <div style={{display:"flex",gap:8,alignItems:"center",padding:"4px 6px",background:"var(--card)",borderRadius:6,flexWrap:"wrap"}}>
-                      <span style={{fontSize:9,color:"var(--subtext)"}}>權重：</span>
+                      <span style={{fontSize:9,color:"var(--subtext)"}}>Weight:</span>
                       {[{w:1.5,label:_lang==="zh"?"◉1.5 核心":"◉1.5 Core"},{w:1.4,label:_lang==="zh"?"◎1.4 重要":"◎1.4 Key"},{w:1.3,label:_lang==="zh"?"○1.3 輔助":"○1.3 Assist"}].map(({w,label})=>{
                         const wb=wBadge(w);
                         return <span key={w} style={{fontSize:9,color:wb.color,fontFamily:"monospace"}} title={wb.title}>{label}</span>;
                       })}
                       <span style={{fontSize:9,color:"#666",marginLeft:4}}>│</span>
                       <span style={{fontSize:9,color:"#f76ab4",fontFamily:"monospace"}}>{_lang==="zh"?"新 = v9.2新增":"new = v9.2+"}</span>
-                      <span style={{fontSize:9,color:C.green,marginLeft:"auto",fontFamily:"monospace"}}>{filtered.length} 條</span>
+                      <span style={{fontSize:9,color:C.green,marginLeft:"auto",fontFamily:"monospace"}}>{filtered.length} items</span>
                     </div>
 
                     {/* ── 按鈕列 ── */}
@@ -2191,7 +2190,7 @@ async function doUnlock(isAutoLogin = false) {
                             fontSize:8,background:"#f76ab422",color:"#f76ab4",
                             padding:"1px 4px",borderRadius:3,border:"1px solid #f76ab455",
                             fontWeight:700,flexShrink:0
-                          }}>新</span>}
+                          }}>new</span>}
                         </button>;
                       })}
                     </div>
@@ -2290,7 +2289,7 @@ async function doUnlock(isAutoLogin = false) {
                       <span style={{marginLeft:6,opacity:0.75,fontStyle:"italic"}}>{(_lang==="zh") ? (item.zh||"").substring(0,60)+(item.zh&&item.zh.length>60?"…":"") : (item.en||"").substring(0,70)+(item.en&&item.en.length>70?"…":"")}</span>
                     </div>;
                   })()}
-                  <DropSelect items={visibleOs} value={selOutfitStyle || ""} onChange={e => setSelOutfitStyle(e || null)} accent={C.orange} placeholder={`── 請選擇風格 (${visibleOs.length} 項) ──`} />
+                  <DropSelect items={visibleOs} value={selOutfitStyle || ""} onChange={e => setSelOutfitStyle(e || null)} accent={C.orange} placeholder={`── Select Style (${visibleOs.length} 項) ──`} />
                   <div style={{marginTop:6,display:"flex",gap:6,justifyContent:"flex-end"}}>
                     <button onClick={()=>setSelOutfitStyle(OUTFIT_STYLE_DB[Math.floor(Math.random()*OUTFIT_STYLE_DB.length)]?.id||null)} style={{background:"transparent",border:`1px solid ${C.orange}`,color:C.orange,padding:"2px 8px",borderRadius:4,fontSize:9,cursor:"pointer",fontWeight:700}}>{_lang==="zh"?"✦ 隨機抽風格":"✦ Random Style"}</button>
                   </div>
@@ -2436,7 +2435,7 @@ async function doUnlock(isAutoLogin = false) {
             </button>
 
             {result&&<div>
-              <div style={{fontSize:11, color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green, marginBottom:8, letterSpacing:1}}>{isCloudMode ? uiLang==="zh"?"☁️ 已啟用雲端破防模式：自動掛載隱性浮雕微陰影咒語":"☁️ Cloud mode: shadow tags injected" : isRunningHubMode ? "⚡ Z-image 新王登基模式：點擊正向提示詞右側按鈕送至 RunningHub 算圖" : "✔ 已自動植入: sks_salon, sks_je, IPD 1:1, 滿血物理張力詞"}</div>
+              <div style={{fontSize:11, color:isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green, marginBottom:8, letterSpacing:1}}>{isCloudMode ? uiLang==="zh"?"☁️ 已啟用雲端破防模式：自動掛載隱性浮雕微陰影咒語":"☁️ Cloud mode: shadow tags injected" : isRunningHubMode ? "⚡ Z-image RunningHub mode: click the Positive prompt button to send for rendering" : "✔ Auto-injected: sks_salon, sks_je, IPD 1:1, full fabric tension tags"}</div>
               <PromptCard title={uiLang==="zh"?"＋ 正向提示詞 POSITIVE":"＋ Positive Prompt"} titleColor={isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green} content={prompts.pos} onExpand={lang=>handleExpand("pos",lang)} expanding={expandingState.pos_zh||expandingState.pos_en} onActionSend={(txt,lang)=>isCloudMode?handleCloudGenerate(txt):isRunningHubMode?handleRunningHubSend(txt):handleComfySend(txt,prompts.neg[lang])} isCloudMode={isCloudMode} isRunningHubMode={isRunningHubMode} isComfyGenerating={isComfyGenerating} cloudApiKey={cloudApiKey} C={C}/>
               <PromptCard title={uiLang==="zh"?"－ 負向提示詞 NEGATIVE":"－ Negative Prompt"} titleColor={C.red} content={prompts.neg} C={C}/>
               {selChars.map(charId => {
@@ -2498,28 +2497,28 @@ async function doUnlock(isAutoLogin = false) {
               {showStoryboard && storyboardMode==="flow" && (
                 <div style={{padding:"12px 16px",background:"rgba(167,139,250,0.04)",borderBottom:"1px solid #a78bfa22",display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,color:"#a78bfa",fontWeight:700,whiteSpace:"nowrap"}}>生成組數：</span>
+                    <span style={{fontSize:11,color:"#a78bfa",fontWeight:700,whiteSpace:"nowrap"}}>Shots:</span>
                     {[4,6,8,10].map(n=>(
                       <button key={n} onClick={()=>setStoryboardCount(n)} style={{
                         padding:"2px 10px",fontSize:11,fontWeight:700,borderRadius:5,cursor:"pointer",
                         background:storyboardCount===n?"rgba(167,139,250,0.3)":"transparent",
                         border:"1px solid #a78bfa"+(storyboardCount===n?"":"55"),
                         color:"#a78bfa"+(storyboardCount===n?"":"99")
-                      }}>{n} 組</button>
+                      }}>{n}</button>
                     ))}
                   </div>
                   <textarea
                     value={storyboardOutline}
                     onChange={e=>setStoryboardOutline(e.target.value)}
-                    placeholder={_lang==="zh"?"【故事大綱】（選填，留空則從目前提示詞延伸）\n例：女孩在黃昏的城市漫步，進入咖啡廳，窗邊對視，微笑離去...":"[Story Outline] (optional)\nEx: A girl walks city streets at dusk, enters a café, makes eye contact with a stranger...離去..."}
+                    placeholder={_lang==="zh"?"【故事大綱】（選填，留空則從目前提示詞延伸）\n例：女孩在黃昏的城市漫步，進入咖啡廳，窗邊對視，微笑離去...":"[Story Outline] (optional)\nEx: A girl walks city streets at dusk, enters a café, makes eye contact with a stranger..."}
                     rows={4}
                     style={{width:"100%",padding:"10px 12px",background:"var(--inputBg)",border:"1px solid #a78bfa44",borderRadius:8,color:"var(--text)",fontSize:12,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"sans-serif",lineHeight:1.7}}
                   />
                   <div style={{fontSize:10,color:"#a78bfa77",lineHeight:1.7}}>
-                    ✦ 輸出格式：自然語言英文描述，適合直接貼入 <b style={{color:"#a78bfa"}}>Google Flow</b><br/>
-                    ✦ 無 Danbooru 標籤、無權重符號，適合 <b style={{color:"#a78bfa"}}>Veo 3.1 / Nano Banana Pro</b><br/>
-                    ✦ 每組含：場景描述 + 角色動作 + 鏡頭運動 + 光影情緒，約 80-120 字<br/>
-                    ✦ 場景末附「<b style={{color:"#22d3ee"}}>📋 複製並開啟 Flow</b>」一鍵跳轉
+                    ✦ Output: natural language English, paste directly into <b style={{color:"#a78bfa"}}>Google Flow</b><br/>
+                    ✦ No Danbooru tags or weight symbols — ideal for <b style={{color:"#a78bfa"}}>Veo 3.1 / Nano Banana Pro</b><br/>
+                    ✦ Each shot: scene + action + camera motion + lighting mood (~80–120 words)<br/>
+                    ✦ Each scene has <b style={{color:"#22d3ee"}}>📋 Copy+Flow</b> for one-click open
                   </div>
                 </div>
               )}
@@ -2527,16 +2526,16 @@ async function doUnlock(isAutoLogin = false) {
               {showStoryboard && storyboardMode==="image" && (
                 <div style={{padding:"12px 16px",background:"rgba(167,139,250,0.04)",borderBottom:"1px solid #a78bfa22",display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,color:"#a78bfa",fontWeight:700,whiteSpace:"nowrap"}}>生成組數：</span>
+                    <span style={{fontSize:11,color:"#a78bfa",fontWeight:700,whiteSpace:"nowrap"}}>Shots:</span>
                     {[4,6,8,10].map(n=>(
                       <button key={n} onClick={()=>setStoryboardCount(n)} style={{
                         padding:"2px 10px",fontSize:11,fontWeight:700,borderRadius:5,cursor:"pointer",
                         background:storyboardCount===n?"rgba(167,139,250,0.3)":"transparent",
                         border:"1px solid #a78bfa"+(storyboardCount===n?"":"55"),
                         color:"#a78bfa"+(storyboardCount===n?"":"99")
-                      }}>{n} 組</button>
+                      }}>{n}</button>
                     ))}
-                    <span style={{fontSize:10,color:"#a78bfa77",marginLeft:4}}>（每組約 150 字英文 Prompt）</span>
+                    <span style={{fontSize:10,color:"#a78bfa77",marginLeft:4}}>(~150 words/shot)</span>
                   </div>
                   <textarea
                     value={storyboardOutline}
@@ -2546,8 +2545,8 @@ async function doUnlock(isAutoLogin = false) {
                     style={{width:"100%",padding:"10px 12px",background:"var(--inputBg)",border:"1px solid #a78bfa44",borderRadius:8,color:"var(--text)",fontSize:12,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"sans-serif",lineHeight:1.7}}
                   />
                   <div style={{fontSize:10,color:"#a78bfa77",lineHeight:1.6}}>
-                    ✦ AI 將自動套用：角色一致 / 色調統一 / 背景連續 / 電影鏡頭語言 / 無對話句<br/>
-                    ✦ 輸出格式：每組以 <b style={{color:"#a78bfa"}}>Next Scene:</b> 開頭，連續文本，無特殊符號
+                    ✦ AI auto-applies: character continuity / unified color grade / progressive background / cinematic language / no dialogue<br/>
+                    ✦ Output: each shot starts with <b style={{color:"#a78bfa"}}>Next Scene:</b>, continuous text, no special symbols
                   </div>
                 </div>
               )}
@@ -2555,13 +2554,13 @@ async function doUnlock(isAutoLogin = false) {
               {/* 影片分鏡模式提示 */}
               {showStoryboard && storyboardMode==="video" && !storyboardResult && !isGenStoryboard && (
                 <div style={{padding:"10px 16px",fontSize:11,color:"var(--subtext)"}}>
-                  將根據目前提示詞生成 <b style={{color:"#22d3ee"}}>KlingAI</b> 和 <b style={{color:"#50c070"}}>Hailuo</b> 兩種影片分鏡格式
+                  Generates <b style={{color:"#22d3ee"}}>KlingAI</b> and <b style={{color:"#50c070"}}>Hailuo</b> storyboard formats from the current prompt
                 </div>
               )}
               {/* Flow 模式提示 */}
               {showStoryboard && storyboardMode==="flow" && !storyboardResult && !isGenStoryboard && (
                 <div style={{padding:"10px 16px",fontSize:11,color:"var(--subtext)"}}>
-                  生成適合 <b style={{color:"#a78bfa"}}>Google Flow</b> 的自然語言分鏡描述，每組約 80-120 字，支援直接開啟 flow.google 貼上
+                  Generates natural language storyboard descriptions for <b style={{color:"#a78bfa"}}>Google Flow</b>, ~80–120 words each, ready to paste at flow.google
                 </div>
               )}
 
@@ -2580,9 +2579,9 @@ async function doUnlock(isAutoLogin = false) {
                           <span style={{fontSize:11,color,fontWeight:700}}>{label}</span>
                           <div style={{display:"flex",gap:6}}>
                             <button onClick={()=>navigator.clipboard.writeText(storyboardResult[key])}
-                              style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:("1px solid "+color+"66"),color}}>📋 複製</button>
+                              style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:("1px solid "+color+"66"),color}}>📋 Copy</button>
                             <button onClick={()=>{navigator.clipboard.writeText(storyboardResult[key]); window.__OPS_FILL_CUSTOM_PROMPT&&window.__OPS_FILL_CUSTOM_PROMPT(storyboardResult[key]);}}
-                              style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:(color+"22"),border:("1px solid "+color),color}}>→ 自訂欄</button>
+                              style={{padding:"2px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:(color+"22"),border:("1px solid "+color),color}}>→ Custom</button>
                           </div>
                         </div>
                         <div style={{padding:"10px 12px",fontSize:12,color:"var(--text)",fontFamily:"monospace",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{storyboardResult[key]}</div>
@@ -2594,12 +2593,12 @@ async function doUnlock(isAutoLogin = false) {
                   {storyboardResult.mode==="image" && storyboardResult.scenes && (
                     <div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                        <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🖼 文生圖分鏡 — {storyboardResult.scenes.length} 組</span>
+                        <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🖼 Image Storyboard — {storyboardResult.scenes.length} Shots</span>
                         <div style={{display:"flex",gap:6}}>
                           <button onClick={()=>{
                             const all = storyboardResult.scenes.map((s,i)=>"Next Scene:\n"+s).join("\n\n---\n\n");
                             navigator.clipboard.writeText(all);
-                          }} style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>📋 複製全部</button>
+                          }} style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>📋 Copy All</button>
                           <button onClick={translateAllScenes}
                             disabled={translatingScene !== null}
                             style={{padding:"3px 12px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
@@ -2615,7 +2614,7 @@ async function doUnlock(isAutoLogin = false) {
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
                               <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🎬 Scene {i+1}</span>
                               <span style={{fontSize:10,color:"#a78bfa66"}}>/ {storyboardResult.scenes.length}</span>
-                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>中文✓</span>}
+                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>ZH✓</span>}
                             </div>
                             {/* 操作按鈕 */}
                             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
@@ -2647,22 +2646,22 @@ async function doUnlock(isAutoLogin = false) {
                                 }}
                                 title={_lang==="zh"?"填入自訂欄送出算圖":"Fill Custom → Send"}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.18)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
-                                ✏️ 填入自訂欄
+                                ✏️ Fill Custom
                               </button>
                             </div>
                           </div>
                           {/* Prompt 內文 */}
                           <div style={{padding:"12px 14px",fontSize:12,color:"var(--text)",fontFamily:"monospace",lineHeight:1.9,whiteSpace:"pre-wrap"}}>{scene}</div>
-                          {/* ZH 中文翻譯區塊 */}
+                          {/* ZH Translation block */}
                           {sceneTranslations[i] && (
                             <div style={{padding:"10px 14px",background:"rgba(34,211,238,0.05)",borderTop:"1px solid #22d3ee22"}}>
-                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 中文翻譯</div>
+                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 ZH Translation</div>
                               <div style={{fontSize:12,color:"var(--text)",lineHeight:1.8,fontFamily:"sans-serif"}}>{sceneTranslations[i]}</div>
                             </div>
                           )}
                           {/* 直送按鈕列 */}
                           <div style={{padding:"8px 14px",background:"rgba(167,139,250,0.05)",borderTop:"1px solid #a78bfa18",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                            <span style={{fontSize:10,color:"#a78bfa77",marginRight:2}}>直送算圖：</span>
+                            <span style={{fontSize:10,color:"#a78bfa77",marginRight:2}}>Send to Render:</span>
                             {isRunningHubMode && (
                               <button
                                 onClick={()=>{ handleRunningHubSend(scene); }}
@@ -2705,7 +2704,7 @@ async function doUnlock(isAutoLogin = false) {
                   {storyboardResult.mode==="flow" && storyboardResult.scenes && (
                     <div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
-                        <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🌊 Google Flow 分鏡 — {storyboardResult.scenes.length} 組</span>
+                        <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🌊 Google Flow Storyboard — {storyboardResult.scenes.length} Shots</span>
                         <div style={{display:"flex",gap:6}}>
                           <button onClick={translateAllScenes} disabled={translatingScene!==null}
                             style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:translatingScene!==null?"wait":"pointer",
@@ -2716,11 +2715,11 @@ async function doUnlock(isAutoLogin = false) {
                               const all = storyboardResult.scenes.map((s,idx2)=>"[Scene "+(idx2+1)+"]\n"+s).join("\n\n");
                               navigator.clipboard.writeText(all);
                             }} style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.15)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
-                            📋 複製全部
+                            📋 Copy All
                           </button>
                           <button onClick={()=>window.open("https://flow.google","_blank")}
                             style={{padding:"3px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.25)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
-                            🌊 開啟 Flow
+                            🌊 Open Flow
                           </button>
                         </div>
                       </div>
@@ -2730,7 +2729,7 @@ async function doUnlock(isAutoLogin = false) {
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
                               <span style={{fontSize:12,color:"#a78bfa",fontWeight:700}}>🌊 Scene {i+1}</span>
                               <span style={{fontSize:10,color:"#a78bfa66"}}>/ {storyboardResult.scenes.length}</span>
-                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>中文✓</span>}
+                              {sceneTranslations[i] && <span style={{fontSize:9,color:"#22d3ee",background:"rgba(34,211,238,0.1)",padding:"1px 6px",borderRadius:4}}>ZH✓</span>}
                             </div>
                             <div style={{display:"flex",gap:5}}>
                               <button onClick={()=>translateScene(scene,i)} disabled={translatingScene!==null}
@@ -2745,14 +2744,14 @@ async function doUnlock(isAutoLogin = false) {
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #a78bfa55",color:"#a78bfa99"}}>📋 EN</button>
                               <button onClick={()=>{ navigator.clipboard.writeText(scene); window.open("https://flow.google","_blank"); }}
                                 style={{padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"rgba(167,139,250,0.25)",border:"1px solid #a78bfa",color:"#a78bfa"}}>
-                                🌊 複製+開Flow
+                                🌊 Copy+Flow
                               </button>
                             </div>
                           </div>
                           <div style={{padding:"12px 14px",fontSize:12,color:"var(--text)",lineHeight:1.9}}>{scene}</div>
                           {sceneTranslations[i] && (
                             <div style={{padding:"10px 14px",background:"rgba(34,211,238,0.05)",borderTop:"1px solid #22d3ee22"}}>
-                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 中文翻譯</div>
+                              <div style={{fontSize:10,color:"#22d3ee",fontWeight:700,marginBottom:5}}>🌐 ZH Translation</div>
                               <div style={{fontSize:12,color:"var(--text)",lineHeight:1.8}}>{sceneTranslations[i]}</div>
                             </div>
                           )}
@@ -2772,7 +2771,7 @@ async function doUnlock(isAutoLogin = false) {
               >
                 <span style={{color:"#c9a84c",fontWeight:"bold",fontSize:13,letterSpacing:1}}>{_lang==="zh"?"📚 提示詞歷史紀錄":"📚 Prompt History"}</span>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:"#c9a84c88"}}>{promptHistory.length} 筆</span>
+                  <span style={{fontSize:10,color:"#c9a84c88"}}>{promptHistory.length} entries</span>
                   <button onClick={e=>{e.stopPropagation();exportHistory();}} style={{padding:"2px 10px",fontSize:10,fontWeight:700,borderRadius:5,cursor:"pointer",background:"transparent",border:"1px solid #c9a84c66",color:"#c9a84c"}}>📥 CSV</button>
                   <span style={{color:"#c9a84c",fontSize:12,opacity:0.7}}>{showHistory?"▲":"▼"}</span>
                 </div>
@@ -2784,7 +2783,7 @@ async function doUnlock(isAutoLogin = false) {
                     style={{width:"100%",padding:"7px 12px",background:"var(--inputBg)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text)",fontSize:12,outline:"none",marginBottom:8,boxSizing:"border-box"}}
                   />
                   {promptHistory.length === 0
-                    ? <div style={{color:"var(--subtext)",fontSize:11,padding:8}}>尚無紀錄，生成提示詞後自動儲存</div>
+                    ? <div style={{color:"var(--subtext)",fontSize:11,padding:8}}>No records yet. Auto-saved after generation.</div>
                     : promptHistory
                         .filter(h => !historySearch || h.pos_en.toLowerCase().includes(historySearch.toLowerCase()) || h.pos_zh.includes(historySearch) || (h.name||"").includes(historySearch))
                         .map(h => (
@@ -2797,8 +2796,8 @@ async function doUnlock(isAutoLogin = false) {
                                 style={{flex:1,minWidth:120,padding:"3px 8px",background:"transparent",border:"1px solid var(--border)",borderRadius:5,color:"#c9a84c",fontSize:11,outline:"none"}}
                               />
                               <div style={{display:"flex",gap:5}}>
-                                <button onClick={()=>{navigator.clipboard.writeText(h.pos_en);}} style={{padding:"2px 8px",fontSize:10,background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:5,cursor:"pointer"}}>📋 複製EN</button>
-                                <button onClick={()=>{window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(h.pos_en);}} style={{padding:"2px 8px",fontSize:10,background:"rgba(201,168,76,0.15)",border:"1px solid #c9a84c66",color:"#c9a84c",borderRadius:5,cursor:"pointer"}}>→ 自訂欄</button>
+                                <button onClick={()=>{navigator.clipboard.writeText(h.pos_en);}} style={{padding:"2px 8px",fontSize:10,background:"transparent",border:"1px solid var(--border)",color:"var(--subtext)",borderRadius:5,cursor:"pointer"}}>📋 Copy EN</button>
+                                <button onClick={()=>{window.__OPS_FILL_CUSTOM_PROMPT && window.__OPS_FILL_CUSTOM_PROMPT(h.pos_en);}} style={{padding:"2px 8px",fontSize:10,background:"rgba(201,168,76,0.15)",border:"1px solid #c9a84c66",color:"#c9a84c",borderRadius:5,cursor:"pointer"}}>→ Custom</button>
                                 <button onClick={()=>deleteHistory(h.id)} style={{padding:"2px 8px",fontSize:10,background:"rgba(200,50,50,0.1)",border:"1px solid #f5554d44",color:"#f55",borderRadius:5,cursor:"pointer"}}>🗑</button>
                               </div>
                             </div>
@@ -2827,7 +2826,7 @@ async function doUnlock(isAutoLogin = false) {
                       </span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <span>{comfyProgress}%</span>
-                        <button onClick={handleCancel} style={{padding:"3px 10px",fontSize:11,fontWeight:"bold",background:"rgba(220,50,50,0.15)",border:"1px solid #f55",color:"#f55",borderRadius:6,cursor:"pointer",lineHeight:1.4}}>✕ 取消</button>
+                        <button onClick={handleCancel} style={{padding:"3px 10px",fontSize:11,fontWeight:"bold",background:"rgba(220,50,50,0.15)",border:"1px solid #f55",color:"#f55",borderRadius:6,cursor:"pointer",lineHeight:1.4}}>✕ Cancel</button>
                       </div>
                     </div>
                     <div style={{width:"100%",height:8,background:`${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}1A`,borderRadius:4,overflow:"hidden",border:`1px solid ${isCloudMode?C.cloud:isRunningHubMode?C.rhGold:C.green}4D`}}>
@@ -2925,11 +2924,11 @@ async function doUnlock(isAutoLogin = false) {
                         <div key={idx} className="comfy-image" style={{flexShrink:0,display:"flex",flexDirection:"column"}}>
                           <div style={{position:"relative"}}>
                             <img src={src} style={{height:450,borderRadius:"8px 8px 0 0",border:`2px solid var(--border)`,borderBottom:"none",objectFit:"contain",background:"#000",boxShadow:"0 5px 15px rgba(0,0,0,0.5)",display:"block"}} alt={`Generated ${idx+1}`} />
-                            <div style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.75)",padding:"3px 8px",borderRadius:4,color:ac,fontSize:10,fontWeight:"bold",border:`1px solid ${ac}`}}>✓ 渲染完成</div>
+                            <div style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.75)",padding:"3px 8px",borderRadius:4,color:ac,fontSize:10,fontWeight:"bold",border:`1px solid ${ac}`}}>✓ Rendered</div>
                           </div>
                           <div style={{display:"flex",borderRadius:"0 0 8px 8px",overflow:"hidden",border:`2px solid var(--border)`,borderTop:`1px solid ${ac}40`}}>
                             <button onClick={doCopy} style={{flex:1,padding:"9px 4px",background:copiedIdx===idx?`${ac}30`:"rgba(0,0,0,0.7)",border:"none",borderRight:`1px solid ${ac}30`,color:copiedIdx===idx?ac:"var(--text)",fontSize:12,cursor:"pointer",fontWeight:700,transition:"all 0.15s"}}>
-                              ⎘ 複製圖片
+                              ⎘ Copy Img
                             </button>
                             <button onClick={doSave} style={{flex:1,padding:"9px 4px",background:"rgba(0,0,0,0.7)",border:"none",color:"var(--text)",fontSize:12,cursor:"pointer",fontWeight:700,transition:"background 0.15s"}}
                               onMouseEnter={e=>e.currentTarget.style.background=`${ac}22`}
@@ -2955,8 +2954,8 @@ async function doUnlock(isAutoLogin = false) {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('APP 服務註冊成功！', reg.scope))
-        .catch(err => console.log('APP 服務註冊失敗：', err));
+        .then(reg => console.log('Service Worker registered!', reg.scope))
+        .catch(err => console.log('Service Worker registration failed:', err));
     });
   }
 </script>
